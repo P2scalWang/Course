@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Data Manager - CourseFlow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.75rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #1e1b4b;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #6366f1;
+            border-radius: 2px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .log-area {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .log-success {
+            color: #4ade80;
+        }
+
+        .log-error {
+            color: #f87171;
+        }
+
+        .log-info {
+            color: #60a5fa;
+        }
+
+        .log-warning {
+            color: #fbbf24;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table th {
+            background: #f1f5f9;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .data-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-blue {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .badge-green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-purple {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .badge-red {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab.active {
+            background: white;
+            color: #1e1b4b;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .connection-status {
+            text-align: center;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background: #4ade80;
+        }
+
+        .status-disconnected {
+            background: #f87171;
+        }
+
+        .action-card {
+            padding: 16px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .action-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+        }
+
+        .action-card.danger {
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        }
+
+        .action-card.danger:hover {
+            border-color: #ef4444;
+        }
+
+        .action-card.success {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        }
+
+        .action-card.success:hover {
+            border-color: #10b981;
+        }
+
+        .action-card h3 {
+            color: #1e1b4b;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        .action-card p {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat {
+            text-align: center;
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .scroll-area {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔥 Firebase Data Manager - CourseFlow</h1>
+
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot status-disconnected" id="statusDot"></span>
+            <span id="statusText">Connecting...</span>
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat">
+                <div class="stat-value" id="statUsers">-</div>
+                <div class="stat-label">Users</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statCourses">-</div>
+                <div class="stat-label">Courses</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statResponses">-</div>
+                <div class="stat-label">Responses</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statRegs">-</div>
+                <div class="stat-label">Registrations</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showSection('main')">🏠 Main</button>
+            <button class="tab" onclick="showSection('users')">👤 Users</button>
+            <button class="tab" onclick="showSection('courses')">📚 Courses</button>
+            <button class="tab" onclick="showSection('responses')">📝 Responses</button>
+            <button class="tab" onclick="showSection('registrations')">✅ Registrations</button>
+            <button class="tab" onclick="showSection('import')">📥 Import/Export</button>
+            <button class="tab" onclick="showSection('logs')">📄 Logs</button>
+        </div>
+
+        <!-- Main Section -->
+        <div id="main" class="section active">
+            <div class="grid">
+                <div class="card">
+                    <h2>⚡ Quick Actions</h2>
+                    <div class="grid-3">
+                        <div class="action-card success" onclick="loadSampleTestData()">
+                            <h3>📦 Load Test Data</h3>
+                            <p>เพิ่มข้อมูลทดสอบ 10 Users + Responses</p>
+                        </div>
+                        <div class="action-card" onclick="refreshAllData()">
+                            <h3>🔄 Refresh All</h3>
+                            <p>โหลดข้อมูลใหม่ทั้งหมด</p>
+                        </div>
+                        <div class="action-card danger" onclick="clearAllTestData()">
+                            <h3>🗑️ Clear Test Data</h3>
+                            <p>ลบเฉพาะข้อมูลทดสอบ (test_*)</p>
+                        </div>
+                        <div class="action-card danger" onclick="clearAllData()">
+                            <h3>⚠️ Clear ALL Data</h3>
+                            <p>ลบข้อมูลทั้งหมดในระบบ</p>
+                        </div>
+                        <div class="action-card" onclick="showSection('import')">
+                            <h3>📥 Import JSON</h3>
+                            <p>นำเข้าข้อมูลจากไฟล์ JSON</p>
+                        </div>
+                        <div class="action-card" onclick="exportAllData()">
+                            <h3>📤 Export All</h3>
+                            <p>ส่งออกข้อมูลทั้งหมดเป็น JSON</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>📋 Recent Activity</h2>
+                    <div class="log-area" id="mainLogArea">
+                        <p class="log-info">Ready to manage Firebase data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>➕ Quick Add Real User</h2>
+                <div class="alert alert-success">
+                    ✅ กรอกข้อมูลด้านล่างเพื่อเพิ่ม User จริงพร้อม Department และ Position
+                </div>
+                <div class="grid">
+                    <div>
+                        <div class="form-group">
+                            <label>User ID (LINE userId หรือ ID ที่ต้องการ)</label>
+                            <input type="text" id="quickUserId" placeholder="e.g. line_user_abc123">
+                        </div>
+                        <div class="form-group">
+                            <label>ชื่อ-นามสกุล</label>
+                            <input type="text" id="quickDisplayName" placeholder="e.g. สมชาย ใจดี">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label>แผนก (Department)</label>
+                            <input type="text" id="quickDepartment" placeholder="e.g. IT, HR, Sales, Marketing">
+                        </div>
+                        <div class="form-group">
+                            <label>ตำแหน่ง (Position)</label>
+                            <input type="text" id="quickPosition" placeholder="e.g. Manager, Developer, Officer">
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="quickAddUser()">✅ Add User Now</button>
+                    <button class="btn btn-secondary" onclick="clearQuickForm()">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div id="users" class="section">
+            <div class="grid">
+                <div class="card">
+                    <h2>Add/Update User</h2>
+                    <div class="form-group">
+                        <label>User ID</label>
+                        <input type="text" id="userId" placeholder="e.g. user_123">
+                    </div>
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" id="displayName" placeholder="ชื่อ-นามสกุล">
+                    </div>
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="department" placeholder="แผนก">
+                    </div>
+                    <div class="form-group">
+                        <label>Position</label>
+                        <input type="text" id="position" placeholder="ตำแหน่ง">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" id="phone" placeholder="0xx-xxx-xxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="email" placeholder="email@example.com">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveUser()">💾 Save</button>
+                        <button class="btn btn-secondary" onclick="clearUserForm()">Clear</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Users List</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="loadUsers()" style="margin-bottom: 12px;">🔄
+                        Refresh</button>
+                    <div class="scroll-area">
+                        <table class="data-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Position</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Courses Section -->
+        <div id="courses" class="section">
+            <div class="grid">
+                <div class="card">
+                    <h2>Add Course</h2>
+                    <div class="form-group">
+                        <label>Course Title</label>
+                        <input type="text" id="courseTitle" placeholder="ชื่อคอร์ส">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="courseDesc" placeholder="รายละเอียดคอร์ส"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="courseDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="courseStatus">
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveCourse()">💾 Save</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Courses List</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="loadCourses()" style="margin-bottom: 12px;">🔄
+                        Refresh</button>
+                    <div class="scroll-area">
+                        <table class="data-table" id="coursesTable">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Responses Section -->
+        <div id="responses" class="section">
+            <div class="grid">
+                <div class="card">
+                    <h2>Add Response</h2>
+                    <div class="form-group">
+                        <label>Course</label>
+                        <select id="responseCourseId">
+                            <option value="">Select</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>User</label>
+                        <select id="responseUserId">
+                            <option value="">Select</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Week</label>
+                        <select id="responseWeek">
+                            <option value="0">Week 0</option>
+                            <option value="2">Week 2</option>
+                            <option value="4">Week 4</option>
+                            <option value="6">Week 6</option>
+                            <option value="8">Week 8</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Responses (JSON)</label>
+                        <textarea id="responseData" placeholder='["Answer", "5", "Yes"]'></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveResponse()">💾 Save</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Responses List</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="loadResponses()" style="margin-bottom: 12px;">🔄
+                        Refresh</button>
+                    <div class="scroll-area">
+                        <table class="data-table" id="responsesTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Course</th>
+                                    <th>Week</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registrations Section -->
+        <div id="registrations" class="section">
+            <div class="grid">
+                <div class="card">
+                    <h2>Add Registration</h2>
+                    <div class="form-group">
+                        <label>User</label>
+                        <select id="regUserId">
+                            <option value="">Select</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Course</label>
+                        <select id="regCourseId">
+                            <option value="">Select</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveRegistration()">💾 Register</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Registrations List</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="loadRegistrations()"
+                        style="margin-bottom: 12px;">🔄 Refresh</button>
+                    <div class="scroll-area">
+                        <table class="data-table" id="registrationsTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Course</th>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import/Export Section -->
+        <div id="import" class="section">
+            <div class="grid">
+                <div class="card">
+                    <h2>📥 Import Data from JSON</h2>
+                    <div class="alert alert-warning">
+                        ⚠️ การ Import จะเพิ่มข้อมูลลงใน Firebase โดยไม่ลบข้อมูลเดิม (Merge)
+                    </div>
+                    <div class="form-group">
+                        <label>Paste JSON Data หรือ Select File</label>
+                        <textarea id="importJson" rows="10"
+                            placeholder='{"users": [...], "courses": [...], "responses": [...], "registrations": [...]}'></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Or Upload JSON File</label>
+                        <input type="file" id="importFile" accept=".json" onchange="loadImportFile(event)">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="importData()">📥 Import Now</button>
+                        <button class="btn btn-secondary"
+                            onclick="document.getElementById('importJson').value=''">Clear</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>📤 Export All Data</h2>
+                    <p style="color: #64748b; margin-bottom: 16px;">Export ข้อมูลทั้งหมดจาก Firebase เป็นไฟล์ JSON</p>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="exportAllData()">📤 Export to JSON</button>
+                        <button class="btn btn-secondary" onclick="copyExportToClipboard()">📋 Copy to
+                            Clipboard</button>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label>Exported Data Preview</label>
+                        <textarea id="exportPreview" rows="8" readonly
+                            placeholder="Click Export to see data..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📋 Sample Import Format</h2>
+                <pre
+                    style="background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 0.8rem; overflow-x: auto;">{
+  "users": [
+    {"id": "user_001", "displayName": "สมชาย ใจดี", "department": "IT", "position": "Developer"},
+    {"id": "user_002", "displayName": "สมหญิง ยิ้มเก่ง", "department": "HR", "position": "Manager"}
+  ],
+  "courses": [
+    {"id": "course_001", "title": "React Basics", "description": "Learn React", "status": "open"}
+  ],
+  "registrations": [
+    {"userId": "user_001", "courseId": "course_001"}
+  ],
+  "responses": [
+    {"userId": "user_001", "courseId": "course_001", "week": 0, "responses": ["Good", "5"]}
+  ]
+}</pre>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div id="logs" class="section">
+            <div class="card">
+                <h2>📄 All Logs</h2>
+                <button class="btn btn-danger btn-sm" onclick="clearLogs()" style="margin-bottom: 12px;">🗑️
+                    Clear</button>
+                <div class="log-area" id="logArea" style="max-height: 500px;">
+                    <p class="log-info">System initialized...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4v0AVQj7fqpqCtH5COXNcmnJbGffFIg4",
+            authDomain: "coures-40940.firebaseapp.com",
+            projectId: "coures-40940",
+            storageBucket: "coures-40940.firebasestorage.app",
+            messagingSenderId: "1050547416072",
+            appId: "1:1050547416072:web:4a52ee6e44d51cc722f5bd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let usersData = [], coursesData = [], responsesData = [], registrationsData = [];
+
+        // Make available globally
+        window.db = db;
+        window.collection = collection;
+        window.getDocs = getDocs;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.addDoc = addDoc;
+        window.deleteDoc = deleteDoc;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.writeBatch = writeBatch;
+
+        // Logging
+        window.log = (msg, type = 'info') => {
+            ['logArea', 'mainLogArea'].forEach(id => {
+                const area = document.getElementById(id);
+                if (area) {
+                    const p = document.createElement('p');
+                    p.className = `log-${type}`;
+                    p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                    area.appendChild(p);
+                    area.scrollTop = area.scrollHeight;
+                }
+            });
+        };
+
+        window.showSection = (id) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+        };
+
+        window.clearLogs = () => {
+            document.getElementById('logArea').innerHTML = '<p class="log-info">Logs cleared</p>';
+            document.getElementById('mainLogArea').innerHTML = '<p class="log-info">Logs cleared</p>';
+        };
+
+        // Stats
+        window.updateStats = () => {
+            document.getElementById('statUsers').textContent = usersData.length;
+            document.getElementById('statCourses').textContent = coursesData.length;
+            document.getElementById('statResponses').textContent = responsesData.length;
+            document.getElementById('statRegs').textContent = registrationsData.length;
+        };
+
+        // ========= LOAD DATA =========
+        window.loadUsers = async () => {
+            try {
+                const snap = await getDocs(collection(db, 'users'));
+                usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                document.querySelector('#usersTable tbody').innerHTML = usersData.map(u => `
+                    <tr>
+                        <td>${u.displayName || u.id}</td>
+                        <td>${u.department || '-'}</td>
+                        <td>${u.position || '-'}</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">🗑️</button></td>
+                    </tr>
+                `).join('');
+                updateSelects();
+                updateStats();
+                log(`Loaded ${usersData.length} users`, 'success');
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.loadCourses = async () => {
+            try {
+                const snap = await getDocs(collection(db, 'courses'));
+                coursesData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                document.querySelector('#coursesTable tbody').innerHTML = coursesData.map(c => `
+                    <tr>
+                        <td>${c.title}</td>
+                        <td>${c.date || '-'}</td>
+                        <td><span class="badge ${c.status === 'open' ? 'badge-green' : 'badge-purple'}">${c.status}</span></td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteCourse('${c.id}')">🗑️</button></td>
+                    </tr>
+                `).join('');
+                updateSelects();
+                updateStats();
+                log(`Loaded ${coursesData.length} courses`, 'success');
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.loadResponses = async () => {
+            try {
+                const snap = await getDocs(query(collection(db, 'responses'), orderBy('submittedAt', 'desc')));
+                responsesData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                document.querySelector('#responsesTable tbody').innerHTML = responsesData.slice(0, 50).map(r => {
+                    const user = usersData.find(u => u.id === r.userId);
+                    const course = coursesData.find(c => c.id === r.courseId);
+                    return `<tr>
+                        <td>${user?.displayName || r.userId?.substring(0, 12) || '-'}</td>
+                        <td>${course?.title || '-'}</td>
+                        <td><span class="badge badge-blue">Week ${r.week}</span></td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteResponse('${r.id}')">🗑️</button></td>
+                    </tr>`;
+                }).join('');
+                updateStats();
+                log(`Loaded ${responsesData.length} responses`, 'success');
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.loadRegistrations = async () => {
+            try {
+                const snap = await getDocs(collection(db, 'registrations'));
+                registrationsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                document.querySelector('#registrationsTable tbody').innerHTML = registrationsData.map(r => {
+                    const user = usersData.find(u => u.id === r.userId);
+                    const course = coursesData.find(c => c.id === r.courseId);
+                    return `<tr>
+                        <td>${user?.displayName || r.userId?.substring(0, 12) || '-'}</td>
+                        <td>${course?.title || '-'}</td>
+                        <td>${r.registeredAt?.toDate?.()?.toLocaleDateString() || '-'}</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteRegistration('${r.id}')">🗑️</button></td>
+                    </tr>`;
+                }).join('');
+                updateStats();
+                log(`Loaded ${registrationsData.length} registrations`, 'success');
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        function updateSelects() {
+            ['responseUserId', 'regUserId'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '<option value="">Select</option>' + usersData.map(u => `<option value="${u.id}">${u.displayName || u.id}</option>`).join('');
+            });
+            ['responseCourseId', 'regCourseId'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '<option value="">Select</option>' + coursesData.map(c => `<option value="${c.id}">${c.title}</option>`).join('');
+            });
+        }
+
+        window.refreshAllData = async () => {
+            log('Refreshing all data...', 'info');
+            await loadUsers();
+            await loadCourses();
+            await loadResponses();
+            await loadRegistrations();
+            log('All data refreshed!', 'success');
+        };
+
+        // ========= SAVE DATA =========
+        window.saveUser = async () => {
+            const id = document.getElementById('userId').value.trim();
+            if (!id) { alert('User ID required'); return; }
+            try {
+                await setDoc(doc(db, 'users', id), {
+                    displayName: document.getElementById('displayName').value || id,
+                    department: document.getElementById('department').value || '',
+                    position: document.getElementById('position').value || '',
+                    phone: document.getElementById('phone').value || '',
+                    email: document.getElementById('email').value || '',
+                    updatedAt: new Date()
+                }, { merge: true });
+                log(`User ${id} saved`, 'success');
+                clearUserForm();
+                loadUsers();
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.quickAddUser = async () => {
+            const id = document.getElementById('quickUserId').value.trim();
+            if (!id) { alert('User ID required'); return; }
+            try {
+                await setDoc(doc(db, 'users', id), {
+                    displayName: document.getElementById('quickDisplayName').value || id,
+                    department: document.getElementById('quickDepartment').value || '',
+                    position: document.getElementById('quickPosition').value || '',
+                    updatedAt: new Date()
+                }, { merge: true });
+                log(`✅ User ${id} added successfully!`, 'success');
+                clearQuickForm();
+                loadUsers();
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.saveCourse = async () => {
+            const title = document.getElementById('courseTitle').value.trim();
+            if (!title) { alert('Title required'); return; }
+            try {
+                await addDoc(collection(db, 'courses'), {
+                    title,
+                    description: document.getElementById('courseDesc').value || '',
+                    date: document.getElementById('courseDate').value || '',
+                    status: document.getElementById('courseStatus').value,
+                    weekForms: {},
+                    createdAt: new Date()
+                });
+                log(`Course "${title}" created`, 'success');
+                loadCourses();
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.saveResponse = async () => {
+            const courseId = document.getElementById('responseCourseId').value;
+            const userId = document.getElementById('responseUserId').value;
+            if (!courseId || !userId) { alert('Select course and user'); return; }
+            let responses = [];
+            try { responses = JSON.parse(document.getElementById('responseData').value || '[]'); } catch { responses = ['Sample']; }
+            try {
+                await addDoc(collection(db, 'responses'), {
+                    courseId, userId,
+                    week: parseInt(document.getElementById('responseWeek').value),
+                    responses,
+                    submittedAt: new Date()
+                });
+                log('Response saved', 'success');
+                loadResponses();
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        window.saveRegistration = async () => {
+            const userId = document.getElementById('regUserId').value;
+            const courseId = document.getElementById('regCourseId').value;
+            if (!userId || !courseId) { alert('Select user and course'); return; }
+            try {
+                await addDoc(collection(db, 'registrations'), { userId, courseId, registeredAt: new Date() });
+                log('Registration saved', 'success');
+                loadRegistrations();
+            } catch (e) { log(`Error: ${e.message}`, 'error'); }
+        };
+
+        // ========= DELETE DATA =========
+        window.deleteUser = async (id) => { if (!confirm('Delete?')) return; await deleteDoc(doc(db, 'users', id)); log(`Deleted user ${id}`, 'warning'); loadUsers(); };
+        window.deleteCourse = async (id) => { if (!confirm('Delete?')) return; await deleteDoc(doc(db, 'courses', id)); log('Deleted course', 'warning'); loadCourses(); };
+        window.deleteResponse = async (id) => { if (!confirm('Delete?')) return; await deleteDoc(doc(db, 'responses', id)); log('Deleted response', 'warning'); loadResponses(); };
+        window.deleteRegistration = async (id) => { if (!confirm('Delete?')) return; await deleteDoc(doc(db, 'registrations', id)); log('Deleted registration', 'warning'); loadRegistrations(); };
+
+        // ========= CLEAR FORMS =========
+        window.clearUserForm = () => ['userId', 'displayName', 'department', 'position', 'phone', 'email'].forEach(id => document.getElementById(id).value = '');
+        window.clearQuickForm = () => ['quickUserId', 'quickDisplayName', 'quickDepartment', 'quickPosition'].forEach(id => document.getElementById(id).value = '');
+
+        // ========= SAMPLE TEST DATA =========
+        window.loadSampleTestData = async () => {
+            if (!confirm('เพิ่มข้อมูลทดสอบครบถ้วน:\n- 10 Users พร้อม LINE Profile\n- Form Templates ทุกประเภท\n- Responses ครบทุก Week (0,2,4,6,8)\n\nดำเนินการต่อ?')) return;
+            log('Loading comprehensive test data...', 'info');
+
+            // ========= 1. TEST USERS (LINE LIFF Compatible) =========
+            // IMPORTANT: dev_user_123 is the mock user ID used by liffService in dev mode
+            const testUsers = [
+                { id: 'dev_user_123', displayName: 'Dev User (LIFF Test)', department: 'IT', position: 'Developer', lineDisplayName: 'Dev User', pictureUrl: 'https://via.placeholder.com/150', phone: '080-000-0000', email: 'dev@test.com' },
+                { id: 'test_user_01', displayName: 'สมชาย มีสุข', department: 'IT', position: 'Developer', lineDisplayName: 'สมชาย', pictureUrl: 'https://profile.line-scdn.net/test1', phone: '081-111-1111', email: 'somchai@test.com' },
+                { id: 'test_user_02', displayName: 'สมหญิง รักดี', department: 'HR', position: 'Manager', lineDisplayName: 'สมหญิง', pictureUrl: 'https://profile.line-scdn.net/test2', phone: '082-222-2222', email: 'somying@test.com' },
+                { id: 'test_user_03', displayName: 'วิทยา ปัญญา', department: 'Sales', position: 'Executive', lineDisplayName: 'Wit', pictureUrl: 'https://profile.line-scdn.net/test3', phone: '083-333-3333', email: 'wittaya@test.com' },
+                { id: 'test_user_04', displayName: 'ปริญญา สร้างสรรค์', department: 'Marketing', position: 'Designer', lineDisplayName: 'ปริญญา', pictureUrl: 'https://profile.line-scdn.net/test4', phone: '084-444-4444', email: 'parinya@test.com' },
+                { id: 'test_user_05', displayName: 'กมลวรรณ เทคโน', department: 'IT', position: 'Lead Developer', lineDisplayName: 'Kamonwan', pictureUrl: 'https://profile.line-scdn.net/test5', phone: '085-555-5555', email: 'kamonwan@test.com' },
+                { id: 'test_user_06', displayName: 'พิชัย บัญชี', department: 'Finance', position: 'Accountant', lineDisplayName: 'พิชัย', pictureUrl: 'https://profile.line-scdn.net/test6', phone: '086-666-6666', email: 'pichai@test.com' },
+                { id: 'test_user_07', displayName: 'อรุณ ควบคุม', department: 'Operations', position: 'Supervisor', lineDisplayName: 'อรุณ', pictureUrl: 'https://profile.line-scdn.net/test7', phone: '087-777-7777', email: 'arun@test.com' },
+                { id: 'test_user_08', displayName: 'ทดสอบ คุณภาพ', department: 'IT', position: 'QA Engineer', lineDisplayName: 'QA Tester', pictureUrl: 'https://profile.line-scdn.net/test8', phone: '088-888-8888', email: 'qa@test.com' },
+                { id: 'test_user_09', displayName: 'รับสมัคร หาคน', department: 'HR', position: 'Recruiter', lineDisplayName: 'HR Team', pictureUrl: 'https://profile.line-scdn.net/test9', phone: '089-999-9999', email: 'recruiter@test.com' },
+                { id: 'test_user_10', displayName: 'ขาย ดี', department: 'Sales', position: 'Manager', lineDisplayName: 'Sales Manager', pictureUrl: 'https://profile.line-scdn.net/test10', phone: '090-000-0000', email: 'sales@test.com' }
+            ];
+
+            for (const u of testUsers) {
+                await setDoc(doc(db, 'users', u.id), { ...u, createdAt: new Date() });
+            }
+            log(`✅ Added ${testUsers.length} test users with LINE profiles`, 'success');
+
+            // ========= 2. FORM TEMPLATES (All Question Types) =========
+            // Form for Week 0 - Pre-Assessment
+            const formWeek0 = await addDoc(collection(db, 'formTemplates'), {
+                name: 'แบบประเมินก่อนเริ่มอบรม (Week 0)',
+                questions: [
+                    { text: 'คุณมีความคาดหวังอะไรจากการอบรมนี้?', type: 'short', options: [] },
+                    { text: 'คุณเคยมีประสบการณ์ในหัวข้อนี้มาก่อนหรือไม่?', type: 'yesno', options: [] },
+                    { text: 'คุณประเมินความรู้ปัจจุบันของตัวเองกี่คะแนน?', type: 'rating', options: [] },
+                    { text: 'คุณสนใจเรียนรู้เรื่องใดบ้าง? (เลือกได้หลายข้อ)', type: 'checkbox', options: ['React Basics', 'State Management', 'API Integration', 'Testing', 'Deployment'] },
+                    { text: 'คุณเรียนรู้ได้ดีที่สุดผ่านวิธีใด?', type: 'multiple_choice', options: ['อ่านเอกสาร', 'ดูวิดีโอ', 'ฝึกปฏิบัติ', 'ทำโปรเจค'] }
+                ],
+                createdAt: new Date()
+            });
+            log(`✅ Added Form Template: Week 0 (Pre-Assessment)`, 'success');
+
+            // Form for Week 2 - Mid-Course Check
+            const formWeek2 = await addDoc(collection(db, 'formTemplates'), {
+                name: 'แบบประเมินสัปดาห์ที่ 2',
+                questions: [
+                    { text: 'คุณเรียนรู้อะไรบ้างในสัปดาห์ที่ผ่านมา?', type: 'short', options: [] },
+                    { text: 'เนื้อหาเข้าใจง่ายหรือไม่?', type: 'yesno', options: [] },
+                    { text: 'ความเร็วในการสอนเหมาะสมหรือไม่?', type: 'rating', options: [] },
+                    { text: 'ส่วนใดที่คุณต้องการความช่วยเหลือเพิ่มเติม?', type: 'checkbox', options: ['Hooks', 'Components', 'Props', 'State', 'Events'] },
+                    { text: 'รูปแบบการสอนที่ชอบที่สุด?', type: 'multiple_choice', options: ['บรรยาย', 'Workshop', 'Q&A', 'กลุ่มย่อย'] }
+                ],
+                createdAt: new Date()
+            });
+            log(`✅ Added Form Template: Week 2`, 'success');
+
+            // Form for Week 4 - Progress Check
+            const formWeek4 = await addDoc(collection(db, 'formTemplates'), {
+                name: 'แบบประเมินสัปดาห์ที่ 4',
+                questions: [
+                    { text: 'สิ่งที่ท้าทายที่สุดในสัปดาห์นี้คืออะไร?', type: 'short', options: [] },
+                    { text: 'คุณสามารถนำไปใช้งานจริงได้หรือไม่?', type: 'yesno', options: [] },
+                    { text: 'ระดับความมั่นใจในการใช้งาน?', type: 'rating', options: [] },
+                    { text: 'เครื่องมือที่ใช้ได้คล่องแล้ว?', type: 'checkbox', options: ['VS Code', 'Git', 'npm', 'Chrome DevTools', 'React DevTools'] },
+                    { text: 'ประเภทโปรเจคที่อยากทำ?', type: 'multiple_choice', options: ['Web App', 'Mobile App', 'E-commerce', 'Dashboard'] }
+                ],
+                createdAt: new Date()
+            });
+            log(`✅ Added Form Template: Week 4`, 'success');
+
+            // Form for Week 6 - Advanced Topics
+            const formWeek6 = await addDoc(collection(db, 'formTemplates'), {
+                name: 'แบบประเมินสัปดาห์ที่ 6',
+                questions: [
+                    { text: 'หัวข้อขั้นสูงที่สนใจมากที่สุด?', type: 'short', options: [] },
+                    { text: 'พร้อมสำหรับโปรเจคสุดท้ายหรือยัง?', type: 'yesno', options: [] },
+                    { text: 'ความพึงพอใจโดยรวมกับคอร์ส?', type: 'rating', options: [] },
+                    { text: 'ทักษะที่ต้องการพัฒนาต่อ?', type: 'checkbox', options: ['TypeScript', 'Next.js', 'Testing', 'CI/CD', 'Cloud Deploy'] },
+                    { text: 'แผนการใช้ความรู้หลังจบคอร์ส?', type: 'multiple_choice', options: ['ใช้ในงานปัจจุบัน', 'เปลี่ยนสายงาน', 'ทำ Freelance', 'สร้าง Startup'] }
+                ],
+                createdAt: new Date()
+            });
+            log(`✅ Added Form Template: Week 6`, 'success');
+
+            // Form for Week 8 - Final Evaluation
+            const formWeek8 = await addDoc(collection(db, 'formTemplates'), {
+                name: 'แบบประเมินหลังจบอบรม (Week 8)',
+                questions: [
+                    { text: 'สิ่งที่ได้เรียนรู้ที่สำคัญที่สุดคืออะไร?', type: 'short', options: [] },
+                    { text: 'คุณจะแนะนำคอร์สนี้ให้ผู้อื่นหรือไม่?', type: 'yesno', options: [] },
+                    { text: 'คะแนนความพึงพอใจโดยรวม?', type: 'rating', options: [] },
+                    { text: 'จุดเด่นของคอร์ส?', type: 'checkbox', options: ['เนื้อหา', 'ผู้สอน', 'เอกสาร', 'การฝึกปฏิบัติ', 'การสนับสนุน'] },
+                    { text: 'คำแนะนำสำหรับการปรับปรุง?', type: 'multiple_choice', options: ['เพิ่มเวลา', 'ลดเนื้อหา', 'เพิ่ม Workshop', 'ปรับปรุงเอกสาร'] }
+                ],
+                createdAt: new Date()
+            });
+            log(`✅ Added Form Template: Week 8 (Final Evaluation)`, 'success');
+
+            // Store form IDs for use in responses
+            const weekFormIds = {
+                0: formWeek0.id,
+                2: formWeek2.id,
+                4: formWeek4.id,
+                6: formWeek6.id,
+                8: formWeek8.id
+            };
+
+            // Calculate week dates (starting from today)
+            const baseDate = new Date();
+            const weekDates = {};
+            [0, 2, 4, 6, 8].forEach(week => {
+                const weekDate = new Date(baseDate);
+                weekDate.setDate(weekDate.getDate() - (8 - week) * 7); // Past dates so they show as available
+                weekDates[week] = weekDate.toISOString().split('T')[0];
+            });
+
+            // ========= 3. TEST COURSE with weekForms and weekDates =========
+            const courseRef = await addDoc(collection(db, 'courses'), {
+                title: 'Test Course - พื้นฐาน React',
+                description: 'คอร์สทดสอบระบบครบทุกฟีเจอร์ - มี Form ทุกประเภท ทุก Week',
+                date: new Date().toISOString().split('T')[0],
+                status: 'open',
+                weekForms: weekFormIds,
+                weekDates: weekDates,
+                registrationKey: 'TEST01', // Default key for testing
+                createdAt: new Date()
+            });
+            log(`✅ Added test course with Key: TEST01`, 'success');
+
+            // ========= 4. SAMPLE RESPONSES (All Types, All Weeks) =========
+            const allWeeks = [0, 2, 4, 6, 8];
+
+            // Sample responses for each question type
+            const sampleResponses = {
+                0: [
+                    'อยากเรียนรู้ React เพื่อนำไปใช้ในงาน',
+                    'ใช่',
+                    '3',
+                    ['React Basics', 'State Management', 'API Integration'],
+                    'ฝึกปฏิบัติ'
+                ],
+                2: [
+                    'เรียนรู้ Components และ Props เข้าใจมากขึ้น',
+                    'ใช่',
+                    '4',
+                    ['Hooks', 'State'],
+                    'Workshop'
+                ],
+                4: [
+                    'การจัดการ State ซับซ้อนยังยากอยู่',
+                    'ใช่',
+                    '4',
+                    ['VS Code', 'Git', 'npm', 'Chrome DevTools'],
+                    'Web App'
+                ],
+                6: [
+                    'อยากเรียน Next.js และ TypeScript',
+                    'ใช่',
+                    '5',
+                    ['TypeScript', 'Next.js', 'Testing'],
+                    'ใช้ในงานปัจจุบัน'
+                ],
+                8: [
+                    'ได้เรียนรู้การสร้าง React App ตั้งแต่ต้นจนจบ',
+                    'ใช่',
+                    '5',
+                    ['เนื้อหา', 'ผู้สอน', 'เอกสาร', 'การฝึกปฏิบัติ'],
+                    'เพิ่ม Workshop'
+                ]
+            };
+
+            // Generate variations for different users
+            const responseVariations = [
+                { rating: '5', yesno: 'ใช่', text: 'ดีมาก', checkbox: 3, mcIndex: 0 },
+                { rating: '4', yesno: 'ใช่', text: 'ดี', checkbox: 2, mcIndex: 1 },
+                { rating: '4', yesno: 'ไม่', text: 'ปานกลาง', checkbox: 4, mcIndex: 2 },
+                { rating: '3', yesno: 'ใช่', text: 'พอใช้', checkbox: 2, mcIndex: 3 },
+                { rating: '5', yesno: 'ใช่', text: 'ยอดเยี่ยม', checkbox: 5, mcIndex: 0 }
+            ];
+
+            // Add registrations for all users
+            for (const u of testUsers) {
+                await addDoc(collection(db, 'registrations'), {
+                    userId: u.id,
+                    courseId: courseRef.id,
+                    registeredAt: new Date()
+                });
+            }
+            log(`✅ Added ${testUsers.length} registrations`, 'success');
+
+            // Add responses for all users across all weeks
+            // IMPORTANT: dev_user_123 only gets responses for Week 0 and 2 (to test pending assessments)
+            let responseCount = 0;
+            for (let i = 0; i < testUsers.length; i++) {
+                const u = testUsers[i];
+                const variation = responseVariations[i % responseVariations.length];
+
+                // For dev_user_123, only create responses for Week 0 and 2
+                // This allows testing both "completed" and "pending" states in LIFF
+                const weeksToRespond = u.id === 'dev_user_123' ? [0, 2] : allWeeks;
+
+                for (const week of weeksToRespond) {
+                    // Generate varied responses based on user and week
+                    const baseResponses = sampleResponses[week];
+                    const responses = [
+                        baseResponses[0] + ` (${u.department})`,  // Short answer with department
+                        variation.yesno,  // Yes/No
+                        variation.rating,  // Rating
+                        baseResponses[3].slice(0, variation.checkbox).join(', '),  // Checkbox as comma-separated string
+                        baseResponses[4]  // Multiple choice
+                    ];
+
+                    await addDoc(collection(db, 'responses'), {
+                        userId: u.id,
+                        courseId: courseRef.id,
+                        formTemplateId: weekFormIds[week],
+                        week,
+                        responses,
+                        submittedAt: new Date(Date.now() - (8 - week) * 7 * 24 * 60 * 60 * 1000) // Stagger dates
+                    });
+                    responseCount++;
+                }
+            }
+            log(`✅ Added ${responseCount} responses (${testUsers.length} users × ${allWeeks.length} weeks)`, 'success');
+
+            await refreshAllData();
+            log('🎉 Comprehensive test data loaded successfully!', 'success');
+            log(`📊 Summary: ${testUsers.length} Users, 5 Form Templates, 1 Course, ${responseCount} Responses`, 'success');
+        };
+
+        // ========= CLEAR DATA =========
+        window.clearAllTestData = async () => {
+            if (!confirm('ลบข้อมูลทดสอบทั้งหมด?\n- Users ที่ ID ขึ้นต้นด้วย "test_"\n- Form Templates ทดสอบ\n- Responses และ Registrations ที่เกี่ยวข้อง')) return;
+            log('Clearing test data...', 'warning');
+
+            // Delete test users
+            const testUserCount = usersData.filter(u => u.id.startsWith('test_')).length;
+            for (const u of usersData.filter(u => u.id.startsWith('test_'))) {
+                await deleteDoc(doc(db, 'users', u.id));
+            }
+            log(`Deleted ${testUserCount} test users`, 'warning');
+
+            // Delete test responses
+            const testResponseCount = responsesData.filter(r => r.userId?.startsWith('test_')).length;
+            for (const r of responsesData.filter(r => r.userId?.startsWith('test_'))) {
+                await deleteDoc(doc(db, 'responses', r.id));
+            }
+            log(`Deleted ${testResponseCount} test responses`, 'warning');
+
+            // Delete test registrations
+            const testRegCount = registrationsData.filter(r => r.userId?.startsWith('test_')).length;
+            for (const r of registrationsData.filter(r => r.userId?.startsWith('test_'))) {
+                await deleteDoc(doc(db, 'registrations', r.id));
+            }
+            log(`Deleted ${testRegCount} test registrations`, 'warning');
+
+            // Delete test courses
+            const testCourseCount = coursesData.filter(c => c.title?.includes('Test Course')).length;
+            for (const c of coursesData.filter(c => c.title?.includes('Test Course'))) {
+                await deleteDoc(doc(db, 'courses', c.id));
+            }
+            log(`Deleted ${testCourseCount} test courses`, 'warning');
+
+            // Delete test form templates
+            const formTemplatesSnap = await getDocs(collection(db, 'formTemplates'));
+            let formCount = 0;
+            for (const d of formTemplatesSnap.docs) {
+                const name = d.data().name || '';
+                if (name.includes('Week 0') || name.includes('Week 2') || name.includes('Week 4') ||
+                    name.includes('Week 6') || name.includes('Week 8') || name.includes('สัปดาห์ที่')) {
+                    await deleteDoc(doc(db, 'formTemplates', d.id));
+                    formCount++;
+                }
+            }
+            log(`Deleted ${formCount} test form templates`, 'warning');
+
+            await refreshAllData();
+            log('🗑️ All test data cleared!', 'success');
+        };
+
+        window.clearAllData = async () => {
+            if (!confirm('⚠️ ลบข้อมูลทั้งหมดในระบบ?\n\n- Users\n- Courses\n- Responses\n- Registrations\n- Form Templates\n\n(ไม่สามารถกู้คืนได้)')) return;
+            if (!confirm('❌ คุณแน่ใจหรือไม่? การดำเนินการนี้จะลบข้อมูลถาวร!')) return;
+
+            log('⚠️ Clearing ALL data from Firestore...', 'error');
+
+            // Delete all users
+            log(`Deleting ${usersData.length} users...`, 'warning');
+            for (const u of usersData) await deleteDoc(doc(db, 'users', u.id));
+
+            // Delete all courses
+            log(`Deleting ${coursesData.length} courses...`, 'warning');
+            for (const c of coursesData) await deleteDoc(doc(db, 'courses', c.id));
+
+            // Delete all responses
+            log(`Deleting ${responsesData.length} responses...`, 'warning');
+            for (const r of responsesData) await deleteDoc(doc(db, 'responses', r.id));
+
+            // Delete all registrations
+            log(`Deleting ${registrationsData.length} registrations...`, 'warning');
+            for (const r of registrationsData) await deleteDoc(doc(db, 'registrations', r.id));
+
+            // Delete all form templates
+            const formTemplatesSnap = await getDocs(collection(db, 'formTemplates'));
+            log(`Deleting ${formTemplatesSnap.docs.length} form templates...`, 'warning');
+            for (const d of formTemplatesSnap.docs) {
+                await deleteDoc(doc(db, 'formTemplates', d.id));
+            }
+
+            await refreshAllData();
+            log('🗑️ ALL data has been cleared from Firestore!', 'success');
+        };
+
+        // ========= IMPORT/EXPORT =========
+        window.loadImportFile = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('importJson').value = e.target.result;
+                log(`Loaded file: ${file.name}`, 'info');
+            };
+            reader.readAsText(file);
+        };
+
+        window.importData = async () => {
+            const json = document.getElementById('importJson').value.trim();
+            if (!json) { alert('No data to import'); return; }
+
+            try {
+                const data = JSON.parse(json);
+                log('Importing data...', 'info');
+
+                // Import users
+                if (data.users?.length) {
+                    for (const u of data.users) {
+                        await setDoc(doc(db, 'users', u.id), {
+                            displayName: u.displayName || u.id,
+                            department: u.department || '',
+                            position: u.position || '',
+                            phone: u.phone || '',
+                            email: u.email || '',
+                            importedAt: new Date()
+                        }, { merge: true });
+                    }
+                    log(`Imported ${data.users.length} users`, 'success');
+                }
+
+                // Import courses
+                if (data.courses?.length) {
+                    for (const c of data.courses) {
+                        if (c.id) {
+                            await setDoc(doc(db, 'courses', c.id), { ...c, importedAt: new Date() }, { merge: true });
+                        } else {
+                            await addDoc(collection(db, 'courses'), { ...c, importedAt: new Date() });
+                        }
+                    }
+                    log(`Imported ${data.courses.length} courses`, 'success');
+                }
+
+                // Import registrations
+                if (data.registrations?.length) {
+                    for (const r of data.registrations) {
+                        await addDoc(collection(db, 'registrations'), { ...r, registeredAt: new Date() });
+                    }
+                    log(`Imported ${data.registrations.length} registrations`, 'success');
+                }
+
+                // Import responses
+                if (data.responses?.length) {
+                    for (const r of data.responses) {
+                        await addDoc(collection(db, 'responses'), { ...r, submittedAt: new Date() });
+                    }
+                    log(`Imported ${data.responses.length} responses`, 'success');
+                }
+
+                await refreshAllData();
+                log('🎉 Import completed!', 'success');
+                document.getElementById('importJson').value = '';
+
+            } catch (e) {
+                log(`Import error: ${e.message}`, 'error');
+                alert('Invalid JSON format');
+            }
+        };
+
+        window.exportAllData = async () => {
+            log('Exporting all data...', 'info');
+            await refreshAllData();
+
+            const exportData = {
+                exportedAt: new Date().toISOString(),
+                users: usersData.map(u => ({ id: u.id, displayName: u.displayName, department: u.department, position: u.position, phone: u.phone, email: u.email })),
+                courses: coursesData.map(c => ({ id: c.id, title: c.title, description: c.description, date: c.date, status: c.status })),
+                registrations: registrationsData.map(r => ({ userId: r.userId, courseId: r.courseId })),
+                responses: responsesData.map(r => ({ userId: r.userId, courseId: r.courseId, week: r.week, responses: r.responses }))
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            document.getElementById('exportPreview').value = json;
+
+            // Download file
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `courseflow_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            log(`📤 Exported: ${usersData.length} users, ${coursesData.length} courses, ${registrationsData.length} registrations, ${responsesData.length} responses`, 'success');
+        };
+
+        window.copyExportToClipboard = () => {
+            const text = document.getElementById('exportPreview').value;
+            if (!text) { alert('Click Export first'); return; }
+            navigator.clipboard.writeText(text);
+            log('Copied to clipboard!', 'success');
+        };
+
+        // ========= INIT =========
+        async function init() {
+            try {
+                await getDocs(collection(db, 'users'));
+                document.getElementById('statusDot').className = 'status-dot status-connected';
+                document.getElementById('statusText').textContent = 'Connected to Firebase ✓';
+                log('✅ Connected to Firebase', 'success');
+                await refreshAllData();
+            } catch (e) {
+                document.getElementById('statusText').textContent = 'Connection failed';
+                log(`Connection error: ${e.message}`, 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
