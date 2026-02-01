@@ -12,6 +12,7 @@ const ResponseViewer = () => {
     const [courses, setCourses] = useState([]);
     const [formTemplates, setFormTemplates] = useState({});
     const [users, setUsers] = useState({}); // userId -> { displayName, department, position }
+    const [registrations, setRegistrations] = useState([]); // Array of { userId, courseId }
     const [loading, setLoading] = useState(true);
 
     // Navigation State
@@ -108,6 +109,14 @@ const ResponseViewer = () => {
             });
             setUsers(usersMap);
 
+            // 5. Fetch Registrations
+            const registrationsSnap = await getDocs(collection(db, 'registrations'));
+            const registrationsData = registrationsSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setRegistrations(registrationsData);
+
         } catch (error) {
             console.error("Error loading data:", error);
         } finally {
@@ -191,14 +200,32 @@ const ResponseViewer = () => {
     });
 
     // Individual Summary Data Construction
-    const uniqueUsers = [...new Set(courseResponses.map(r => r.userId))].sort();
+    const enrolledUserIds = registrations
+        .filter(r => r.courseId === selectedCourseId)
+        .map(r => r.userId);
+
+    const respondingUserIds = courseResponses.map(r => r.userId);
+
+    // Union of enrolled users + users who have responded (in case of legacy data)
+    const uniqueUsers = [...new Set([...enrolledUserIds, ...respondingUserIds])].sort();
+
+    // Count users who have submitted AT LEAST ONE response
+    const submittedUsersCount = uniqueUsers.filter(userId =>
+        courseResponses.some(r => r.userId === userId)
+    ).length;
+
     const allWeeks = [0, 2, 4, 6, 8]; // Expected weeks
 
     // Filtered users for Individual Summary
     const filteredUsers = uniqueUsers.filter(userId => {
         // Search filter
         if (searchTerm && !userId.toLowerCase().includes(searchTerm.toLowerCase())) {
-            return false;
+            const userInfo = users[userId];
+            if (userInfo && !userInfo.displayName.toLowerCase().includes(searchTerm.toLowerCase())) {
+                return false;
+            } else if (!userInfo) {
+                return false;
+            }
         }
         // Completion filter
         if (completionFilter !== 'all') {
@@ -466,9 +493,9 @@ const ResponseViewer = () => {
                 {/* Search & Filter Bar */}
                 <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <span className="text-sm text-slate-500">Total:</span>
+                        <span className="text-sm text-slate-500">Submitted:</span>
                         <span className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded border border-indigo-100">
-                            {filteredUsers.length} / {uniqueUsers.length} Trainees
+                            {submittedUsersCount} / {uniqueUsers.length} Trainees
                         </span>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
