@@ -47,23 +47,28 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Async-parallel: Fetch Courses and Responses concurrently
-                const [coursesSnapshot, responsesSnapshot] = await Promise.all([
+                // Async-parallel: Fetch all data concurrently
+                const [coursesSnapshot, responsesSnapshot, registrationsSnapshot, usersSnapshot] = await Promise.all([
                     getDocs(collection(db, 'courses')),
-                    getDocs(collection(db, 'responses'))
+                    getDocs(collection(db, 'responses')),
+                    getDocs(collection(db, 'registrations')),
+                    getDocs(collection(db, 'users'))
                 ]);
 
                 const courses = coursesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
+                // Count unique trainees from registrations OR users collection
+                const uniqueUserIds = new Set(registrationsSnapshot.docs.map(d => d.data().userId));
+                const traineeCount = Math.max(uniqueUserIds.size, usersSnapshot.size);
+
                 setStats({
                     courses: courses.length,
                     activeCourses: courses.filter(c => c.status === 'open').length,
-                    trainees: 128, // Mockup for now
+                    trainees: traineeCount,
                     responses: responsesSnapshot.size
                 });
 
                 // Get recent 5 courses
-                // Note: 'createdAt' might not exist on old data, falling back to client-side sort if needed
                 setRecentCourses(courses.slice(0, 5));
 
             } catch (error) {
@@ -93,7 +98,6 @@ const Dashboard = () => {
                     value={stats.courses}
                     icon={BookOpen}
                     color="bg-blue-500 text-blue-600"
-                    trend="+12%"
                 />
                 <StatCard
                     title="Active Classes"
@@ -106,7 +110,6 @@ const Dashboard = () => {
                     value={stats.trainees}
                     icon={Users}
                     color="bg-violet-500 text-violet-600"
-                    trend="+5%"
                 />
                 <StatCard
                     title="Assessments"
