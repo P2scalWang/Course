@@ -45,18 +45,29 @@ const CourseDetail = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                await liffService.init();
-                const userProfile = await liffService.getProfile();
+                // async-parallel: Start independent tasks immediately
+                const profilePromise = liffService.init().then(() => liffService.getProfile());
+                const coursePromise = getDoc(doc(db, 'courses', courseId));
+
+                // Wait for profile to check registration
+                const userProfile = await profilePromise;
                 setProfile(userProfile);
 
-                const courseDoc = await getDoc(doc(db, 'courses', courseId));
+                // Start registration check immediately upon profile availablity, 
+                // while course might still be loading (async-dependencies)
+                const registrationPromise = userProfile
+                    ? registrationService.checkRegistration(userProfile.userId, courseId)
+                    : Promise.resolve(false);
+
+                // Wait for course and registration check in parallel
+                const [courseDoc, registered] = await Promise.all([
+                    coursePromise,
+                    registrationPromise
+                ]);
+
                 if (courseDoc.exists()) {
                     setCourse({ id: courseDoc.id, ...courseDoc.data() });
-
-                    if (userProfile) {
-                        const registered = await registrationService.checkRegistration(userProfile.userId, courseId);
-                        setIsRegistered(registered);
-                    }
+                    setIsRegistered(registered);
                 }
             } catch (error) {
                 console.error(error);

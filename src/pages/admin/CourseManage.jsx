@@ -2,7 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { courseService } from '../../services/courseService';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Plus, Edit, Trash2, CheckCircle, XCircle, Send, FileText, Search, Filter, MoreVertical, Calendar, Users, ExternalLink, BookOpen, ChevronDown, ChevronUp, Key, Copy, RefreshCw } from 'lucide-react';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import Edit from 'lucide-react/dist/esm/icons/edit';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle';
+import Send from 'lucide-react/dist/esm/icons/send';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Search from 'lucide-react/dist/esm/icons/search';
+import Filter from 'lucide-react/dist/esm/icons/filter';
+import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical';
+import Calendar from 'lucide-react/dist/esm/icons/calendar';
+import Users from 'lucide-react/dist/esm/icons/users';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
+import Key from 'lucide-react/dist/esm/icons/key';
+import Copy from 'lucide-react/dist/esm/icons/copy';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import Folder from 'lucide-react/dist/esm/icons/folder';
+import Bell from 'lucide-react/dist/esm/icons/bell';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,14 +42,21 @@ const CourseManage = () => {
     const navigate = useNavigate();
     const [courses, setCourses] = useState([]);
     const [forms, setForms] = useState([]);
+    const [folders, setFolders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentCourse, setCurrentCourse] = useState(null);
+
+    // Single folder filter for all weeks
+    const [selectedFolderFilter, setSelectedFolderFilter] = useState('');
 
     // Search & Filter
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'open' | 'closed'
     const [showFilters, setShowFilters] = useState(false);
+
+    // Weekly Notification dropdown state
+    const [openNotifyDropdown, setOpenNotifyDropdown] = useState(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -43,19 +70,31 @@ const CourseManage = () => {
     });
 
     useEffect(() => {
-        fetchCourses();
-        fetchForms();
+        const loadAllData = async () => {
+            setIsLoading(true);
+            try {
+                // Parallel fetch all required data
+                await Promise.all([
+                    fetchCourses(),
+                    fetchForms(),
+                    fetchFolders()
+                ]);
+            } catch (e) {
+                console.error("Load error", e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadAllData();
     }, []);
 
     const fetchCourses = async () => {
-        setIsLoading(true);
+        // Individual loading removed to prevent flickering during initial load
         try {
             const data = await courseService.getAllCourses();
             setCourses(data);
         } catch (error) {
             console.error("Failed to load courses", error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -67,6 +106,22 @@ const CourseManage = () => {
         } catch (error) {
             console.error("Failed to load forms", error);
         }
+    };
+
+    const fetchFolders = async () => {
+        try {
+            const snapshot = await getDocs(collection(db, 'formFolders'));
+            const foldersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setFolders(foldersData);
+        } catch (error) {
+            console.error("Failed to load folders", error);
+        }
+    };
+
+    // Get filtered forms based on single folder selection
+    const getFilteredForms = () => {
+        if (!selectedFolderFilter) return forms; // No filter, show all
+        return forms.filter(f => f.folderId === selectedFolderFilter);
     };
 
     const handleSubmit = async (e) => {
@@ -111,10 +166,42 @@ const CourseManage = () => {
             try {
                 await courseService.markAsFinished(course.id, course.title);
                 fetchCourses();
-                alert("Class marked as finished! Notifications sent.");
+                alert("Class marked as finished! Flex Message notifications sent.");
             } catch (error) {
                 alert("Failed to mark as finished");
             }
+        }
+    };
+
+    // Send weekly notification
+    const handleSendWeeklyNotification = async (course, weekNumber) => {
+        if (!confirm(`Send Week ${weekNumber} notification to all trainees in "${course.title}"?`)) {
+            return;
+        }
+
+        setOpenNotifyDropdown(null);
+
+        try {
+            const response = await fetch('/api/notifyWeekly', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    courseId: course.id,
+                    courseTitle: course.title,
+                    weekNumber
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`✅ Week ${weekNumber} notification sent to ${data.sentTo} trainees!`);
+            } else {
+                throw new Error(data.error || 'Failed to send notification');
+            }
+        } catch (error) {
+            console.error('Weekly notification error:', error);
+            alert(`❌ Failed to send notification: ${error.message}`);
         }
     };
 
@@ -372,7 +459,7 @@ const CourseManage = () => {
                                             <button
                                                 onClick={() => handleMarkFinished(course)}
                                                 disabled={course.isFinished}
-                                                title="Finish Class"
+                                                title="Finish Class & Send Week 0 Notification"
                                                 className={clsx(
                                                     "p-2 rounded-lg transition-colors border shadow-sm",
                                                     course.isFinished
@@ -382,6 +469,41 @@ const CourseManage = () => {
                                             >
                                                 <Send size={18} />
                                             </button>
+
+                                            {/* Weekly Notification Dropdown */}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => setOpenNotifyDropdown(openNotifyDropdown === course.id ? null : course.id)}
+                                                    disabled={!course.isFinished}
+                                                    title="Send Weekly Follow-up Notification"
+                                                    className={clsx(
+                                                        "p-2 rounded-lg transition-colors border shadow-sm",
+                                                        !course.isFinished
+                                                            ? "bg-slate-100 text-slate-400 cursor-not-allowed border-transparent"
+                                                            : "bg-white border-slate-200 text-amber-600 hover:text-amber-700 hover:border-amber-200"
+                                                    )}
+                                                >
+                                                    <Bell size={18} />
+                                                </button>
+
+                                                {openNotifyDropdown === course.id && (
+                                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
+                                                        <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                                            Send Notification
+                                                        </div>
+                                                        {[2, 4, 6, 8].map(week => (
+                                                            <button
+                                                                key={week}
+                                                                onClick={() => handleSendWeeklyNotification(course, week)}
+                                                                className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition-colors"
+                                                            >
+                                                                <Bell size={14} />
+                                                                Week {week} Follow-up
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             <button
                                                 onClick={() => handleDelete(course.id)}
@@ -515,6 +637,26 @@ const CourseManage = () => {
                                     </button>
                                 </div>
 
+                                {/* Single Folder Filter */}
+                                <div className="mb-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                                    <label className="block text-sm font-semibold text-indigo-900 mb-2 flex items-center gap-2">
+                                        <Folder size={16} className="text-indigo-600" />
+                                        Filter Forms by Folder
+                                    </label>
+                                    <select
+                                        className="input-primary text-sm"
+                                        value={selectedFolderFilter}
+                                        onChange={e => setSelectedFolderFilter(e.target.value)}
+                                    >
+                                        <option value="">📁 All Folders (Show All Forms)</option>
+                                        {folders.map(folder => (
+                                            <option key={folder.id} value={folder.id}>
+                                                📁 {folder.name} ({forms.filter(f => f.folderId === folder.id).length} forms)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 <div className="space-y-3">
                                     {WEEKS.map(week => (
                                         <div key={week} className="grid grid-cols-12 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -539,7 +681,7 @@ const CourseManage = () => {
                                                     onChange={e => updateWeekForm(week, e.target.value)}
                                                 >
                                                     <option value="">-- Select Form --</option>
-                                                    {forms.map(form => (
+                                                    {getFilteredForms().map(form => (
                                                         <option key={form.id} value={form.id}>
                                                             {form.name} ({form.questions?.length || 0} Qs)
                                                         </option>

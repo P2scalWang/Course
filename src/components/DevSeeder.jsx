@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Database, Check, Loader2, AlertTriangle } from 'lucide-react';
+import Database from 'lucide-react/dist/esm/icons/database';
+import Check from 'lucide-react/dist/esm/icons/check';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 
 const DevSeeder = () => {
     const [status, setStatus] = useState('idle'); // idle, loading, success, error

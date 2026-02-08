@@ -47,11 +47,14 @@ const LiffAssessment = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                await liffService.init();
-                const profile = await liffService.getProfile();
+                // async-parallel: Fetch LIFF profile and Course data in parallel
+                const [profile, courseDoc] = await Promise.all([
+                    liffService.init().then(() => liffService.getProfile()),
+                    getDoc(doc(db, 'courses', courseId))
+                ]);
+
                 setUserId(profile?.userId || 'anonymous');
 
-                const courseDoc = await getDoc(doc(db, 'courses', courseId));
                 if (!courseDoc.exists()) {
                     setLoading(false);
                     return;

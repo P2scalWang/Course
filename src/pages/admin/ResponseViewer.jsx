@@ -2,9 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, Search, Filter, Eye, X, FileText, Calendar, User, Download, ArrowLeft, ArrowRight, Layers, Folder, Users, CheckCircle, Circle, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import Search from 'lucide-react/dist/esm/icons/search';
+import Filter from 'lucide-react/dist/esm/icons/filter';
+import Eye from 'lucide-react/dist/esm/icons/eye';
+import X from 'lucide-react/dist/esm/icons/x';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Calendar from 'lucide-react/dist/esm/icons/calendar';
+import User from 'lucide-react/dist/esm/icons/user';
+import Download from 'lucide-react/dist/esm/icons/download';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
+import Layers from 'lucide-react/dist/esm/icons/layers';
+import Folder from 'lucide-react/dist/esm/icons/folder';
+import Users from 'lucide-react/dist/esm/icons/users';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Circle from 'lucide-react/dist/esm/icons/circle';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
 import clsx from 'clsx';
-import * as XLSX from 'xlsx';
+// Removed unused 'xlsx' import (bundle-heavy-dependencies)
+import ExcelJS from 'exceljs';
 
 const ResponseViewer = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -71,8 +89,22 @@ const ResponseViewer = () => {
     const loadAllData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch Responses
-            const responsesSnap = await getDocs(query(collection(db, 'responses'), orderBy('submittedAt', 'desc')));
+            // async-parallel: Parallel fetch of all 5 independent datasets
+            const [
+                responsesSnap,
+                coursesSnap,
+                formsSnap,
+                usersSnap,
+                registrationsSnap
+            ] = await Promise.all([
+                getDocs(query(collection(db, 'responses'), orderBy('submittedAt', 'desc'))),
+                getDocs(collection(db, 'courses')),
+                getDocs(collection(db, 'formTemplates')),
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'registrations'))
+            ]);
+
+            // 1. Process Responses
             const responsesData = responsesSnap.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -81,21 +113,18 @@ const ResponseViewer = () => {
             }));
             setResponses(responsesData);
 
-            // 2. Fetch Courses
-            const coursesSnap = await getDocs(collection(db, 'courses'));
+            // 2. Process Courses
             const coursesData = coursesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setCourses(coursesData);
 
-            // 3. Fetch Forms
-            const formsSnap = await getDocs(collection(db, 'formTemplates'));
+            // 3. Process Forms
             const formsMap = {};
             formsSnap.docs.forEach(doc => {
                 formsMap[doc.id] = { name: doc.data().name, questions: doc.data().questions || [] };
             });
             setFormTemplates(formsMap);
 
-            // 4. Fetch Users (for department/position display)
-            const usersSnap = await getDocs(collection(db, 'users'));
+            // 4. Process Users
             const usersMap = {};
             usersSnap.docs.forEach(doc => {
                 const data = doc.data();
@@ -109,8 +138,7 @@ const ResponseViewer = () => {
             });
             setUsers(usersMap);
 
-            // 5. Fetch Registrations
-            const registrationsSnap = await getDocs(collection(db, 'registrations'));
+            // 5. Process Registrations
             const registrationsData = registrationsSnap.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -237,29 +265,123 @@ const ResponseViewer = () => {
         return true;
     });
 
-    // --- Export Functions ---
-    const exportIndividualSummary = () => {
-        const wb = XLSX.utils.book_new();
+    // --- Helper function to apply Excel styling (auto-fit columns) ---
+    const applyExcelStyles = (worksheet, data) => {
+        if (!data || data.length === 0) return;
+
+        const headers = Object.keys(data[0]);
+
+        // Calculate optimal column widths based on content
+        const colWidths = headers.map((header) => {
+            const headerLen = header.length;
+            const maxDataLen = data.reduce((max, row) => {
+                const cellValue = String(row[header] || '');
+                return Math.max(max, cellValue.length);
+            }, 0);
+            // Add padding, cap at 60 characters max
+            return { wch: Math.min(Math.max(headerLen, maxDataLen) + 3, 60) };
+        });
+
+        worksheet['!cols'] = colWidths;
+    };
+
+    // --- Export Functions with ExcelJS styling ---
+
+    // Helper function to apply styling to a worksheet
+    const applyExcelJSStyles = (worksheet, dataRows) => {
+        // Track max content length for each column
+        const colMaxLengths = {};
+
+        // Initialize with header lengths
+        worksheet.columns.forEach(col => {
+            colMaxLengths[col.key] = (col.header?.length || 10) + 5;
+        });
+
+        // Style header row
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell((cell) => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD6EAF8' }
+            };
+            cell.font = { bold: true };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        });
+
+        // Style data rows and track max lengths
+        dataRows.forEach((rowData, rowIndex) => {
+            const row = worksheet.getRow(rowIndex + 2); // +2 because row 1 is header
+
+            Object.keys(rowData).forEach((key, colIndex) => {
+                const value = String(rowData[key] || '');
+                if (value.length + 5 > (colMaxLengths[key] || 0)) {
+                    colMaxLengths[key] = Math.min(value.length + 5, 120);
+                }
+
+                const cell = row.getCell(colIndex + 1);
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+            });
+        });
+
+        // Apply auto-fit column widths
+        worksheet.columns.forEach(col => {
+            if (colMaxLengths[col.key]) {
+                col.width = colMaxLengths[col.key];
+            }
+        });
+    };
+
+    const exportIndividualSummary = async () => {
+        const workbook = new ExcelJS.Workbook();
 
         // Sheet 1: Summary (completion status with department/position)
         const summaryData = uniqueUsers.map(userId => {
             const userResponses = courseResponses.filter(r => r.userId === userId);
             const userInfo = getUserInfo(userId);
             const row = {
-                'Trainee ID': userId,
-                'Name': userInfo.displayName,
-                'Department': userInfo.department || '-',
-                'Position': userInfo.position || '-'
+                traineeId: userId,
+                name: userInfo.displayName,
+                department: userInfo.department || '-',
+                position: userInfo.position || '-'
             };
             allWeeks.forEach(week => {
                 const hasResponse = userResponses.find(r => r.week === week);
-                row[`Week ${week}`] = hasResponse ? 'Done' : '-';
+                row[`week${week}`] = hasResponse ? 'Done' : '-';
             });
-            row['Completion %'] = Math.round((userResponses.length / allWeeks.length) * 100) + '%';
+            row.completion = Math.round((userResponses.length / allWeeks.length) * 100) + '%';
             return row;
         });
-        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+
+        const summarySheet = workbook.addWorksheet('Summary');
+
+        // Define columns for summary
+        const summaryColumns = [
+            { header: 'Trainee ID', key: 'traineeId', width: 25 },
+            { header: 'Name', key: 'name', width: 20 },
+            { header: 'Department', key: 'department', width: 15 },
+            { header: 'Position', key: 'position', width: 15 }
+        ];
+        allWeeks.forEach(week => {
+            summaryColumns.push({ header: `Week ${week}`, key: `week${week}`, width: 10 });
+        });
+        summaryColumns.push({ header: 'Completion %', key: 'completion', width: 12 });
+
+        summarySheet.columns = summaryColumns;
+        summaryData.forEach(row => summarySheet.addRow(row));
+        applyExcelJSStyles(summarySheet, summaryData);
 
         // Sheet per Week: Full Questions & Answers
         allWeeks.forEach(week => {
@@ -267,53 +389,241 @@ const ResponseViewer = () => {
             const weekResponses = courseResponses.filter(r => r.week === week);
 
             if (weekResponses.length > 0) {
+                const weekSheet = workbook.addWorksheet(`Week ${week}`);
+
+                // Define columns
+                const weekColumns = [
+                    { header: 'Trainee ID', key: 'traineeId', width: 25 },
+                    { header: 'Name', key: 'name', width: 20 },
+                    { header: 'Department', key: 'department', width: 15 },
+                    { header: 'Position', key: 'position', width: 15 },
+                    { header: 'Submitted At', key: 'submittedAt', width: 20 }
+                ];
+                weekQuestions.forEach((q, idx) => {
+                    weekColumns.push({
+                        header: `Q${idx + 1}: ${q.text.length > 40 ? q.text.substring(0, 40) + '...' : q.text}`,
+                        key: `q${idx}`,
+                        width: 30
+                    });
+                });
+                weekSheet.columns = weekColumns;
+
                 const weekData = weekResponses.map(response => {
                     const userInfo = getUserInfo(response.userId);
                     const row = {
-                        'Trainee ID': response.userId || 'Anonymous',
-                        'Name': userInfo.displayName,
-                        'Department': userInfo.department || '-',
-                        'Position': userInfo.position || '-',
-                        'Submitted At': response.submittedAt?.toLocaleString() || '-'
+                        traineeId: response.userId || 'Anonymous',
+                        name: userInfo.displayName,
+                        department: userInfo.department || '-',
+                        position: userInfo.position || '-',
+                        submittedAt: response.submittedAt?.toLocaleString() || '-'
                     };
                     weekQuestions.forEach((q, idx) => {
                         const answer = response.responses?.[idx];
-                        const questionLabel = `Q${idx + 1}: ${q.text.length > 40 ? q.text.substring(0, 40) + '...' : q.text}`;
-                        row[questionLabel] = Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-');
+                        row[`q${idx}`] = Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-');
                     });
                     return row;
                 });
 
-                const weekSheet = XLSX.utils.json_to_sheet(weekData);
-                XLSX.utils.book_append_sheet(wb, weekSheet, `Week ${week}`);
+                weekData.forEach(row => weekSheet.addRow(row));
+                applyExcelJSStyles(weekSheet, weekData);
             }
         });
 
-        XLSX.writeFile(wb, `${getCourseName(selectedCourseId)}_All_Responses.xlsx`);
+        // Download file
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${getCourseName(selectedCourseId)}_All_Responses.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
     };
 
-    const exportWeekResponses = () => {
+    const exportWeekResponses = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet(`Week ${selectedWeek}`);
+
         const weekQuestions = getQuestionsForWeek(selectedCourseId, selectedWeek);
+
+        // Define columns
+        const columns = [
+            { header: 'Trainee ID', key: 'traineeId', width: 25 },
+            { header: 'Name', key: 'name', width: 20 },
+            { header: 'Department', key: 'department', width: 15 },
+            { header: 'Position', key: 'position', width: 15 },
+            { header: 'Submitted At', key: 'submittedAt', width: 20 }
+        ];
+        weekQuestions.forEach((q, idx) => {
+            columns.push({
+                header: `Q${idx + 1}: ${q.text.length > 50 ? q.text.substring(0, 50) + '...' : q.text}`,
+                key: `q${idx}`,
+                width: 30
+            });
+        });
+        worksheet.columns = columns;
+
         const data = filteredResponses.map(response => {
             const userInfo = getUserInfo(response.userId);
             const row = {
-                'Trainee ID': response.userId || 'Anonymous',
-                'Name': userInfo.displayName,
-                'Department': userInfo.department || '-',
-                'Position': userInfo.position || '-',
-                'Submitted At': response.submittedAt?.toLocaleString() || '-'
+                traineeId: response.userId || 'Anonymous',
+                name: userInfo.displayName,
+                department: userInfo.department || '-',
+                position: userInfo.position || '-',
+                submittedAt: response.submittedAt?.toLocaleString() || '-'
             };
             weekQuestions.forEach((q, idx) => {
                 const answer = response.responses?.[idx];
-                row[`Q${idx + 1}: ${q.text.substring(0, 50)}...`] = Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-');
+                row[`q${idx}`] = Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-');
             });
             return row;
         });
 
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `Week ${selectedWeek}`);
-        XLSX.writeFile(wb, `${getCourseName(selectedCourseId)}_Week${selectedWeek}_Responses.xlsx`);
+        data.forEach(row => worksheet.addRow(row));
+        applyExcelJSStyles(worksheet, data);
+
+        // Download file
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${getCourseName(selectedCourseId)}_Week${selectedWeek}_Responses.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // Export individual user report (all weeks for one trainee) - Single sheet format with styling
+    const exportUserReport = async () => {
+        const userAllResponses = courseResponses
+            .filter(r => r.userId === selectedUserId)
+            .sort((a, b) => a.week - b.week);
+
+        const userInfo = getUserInfo(selectedUserId);
+
+        // Create workbook with ExcelJS for proper styling
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Report');
+
+        // Define columns (initial widths, will be auto-fitted later)
+        worksheet.columns = [
+            { header: 'Week', key: 'week', width: 15 },
+            { header: 'No.', key: 'no', width: 6 },
+            { header: 'Question', key: 'question', width: 30 },
+            { header: 'Answer', key: 'answer', width: 50 }
+        ];
+
+        // Track max content length for each column to auto-fit
+        const colMaxLengths = { week: 15, no: 6, question: 30, answer: 50 };
+
+        // Style header row
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell((cell) => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD6EAF8' } // Light blue background
+            };
+            cell.font = { bold: true };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        });
+
+        // Helper function to add styled row and track column widths
+        const addStyledRow = (data, isHeader = false) => {
+            const row = worksheet.addRow(data);
+
+            // Track max lengths for auto-fit (add more padding for nicer spacing)
+            Object.keys(data).forEach(key => {
+                const value = String(data[key] || '');
+                if (value.length > (colMaxLengths[key] || 0)) {
+                    colMaxLengths[key] = Math.min(value.length + 5, 120); // Add 5 for padding, cap at 120
+                }
+            });
+
+            row.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                if (isHeader) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFD6EAF8' }
+                    };
+                    cell.font = { bold: true };
+                }
+            });
+            return row;
+        };
+
+        // Add trainee info section
+        addStyledRow({ week: 'Trainee Info', no: '', question: 'Name', answer: userInfo.displayName }, true);
+        addStyledRow({ week: '', no: '', question: 'Trainee ID', answer: selectedUserId });
+        addStyledRow({ week: '', no: '', question: 'Department', answer: userInfo.department || '-' });
+        addStyledRow({ week: '', no: '', question: 'Position', answer: userInfo.position || '-' });
+        addStyledRow({ week: '', no: '', question: 'Course', answer: getCourseName(selectedCourseId) });
+        addStyledRow({ week: '', no: '', question: 'Total Weeks Submitted', answer: String(userAllResponses.length) });
+
+        // Empty row separator
+        worksheet.addRow({});
+
+        // Add each week's data
+        userAllResponses.forEach(response => {
+            const weekQuestions = getQuestionsForWeek(selectedCourseId, response.week);
+
+            // Week header row
+            addStyledRow({
+                week: `Week ${response.week}`,
+                no: '',
+                question: 'Submitted At:',
+                answer: response.submittedAt?.toLocaleString() || '-'
+            }, true);
+
+            // Questions and answers for this week
+            weekQuestions.forEach((q, idx) => {
+                const answer = response.responses?.[idx];
+                addStyledRow({
+                    week: '',
+                    no: idx + 1,
+                    question: q.text,
+                    answer: Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-')
+                });
+            });
+
+            // Empty row separator between weeks
+            worksheet.addRow({});
+        });
+
+        // Auto-fit column widths based on content
+        worksheet.getColumn('week').width = colMaxLengths.week;
+        worksheet.getColumn('no').width = colMaxLengths.no;
+        worksheet.getColumn('question').width = colMaxLengths.question;
+        worksheet.getColumn('answer').width = colMaxLengths.answer;
+
+        // Generate safe filename
+        const safeName = userInfo.displayName.replace(/[^a-zA-Z0-9ก-๙_\-\s]/g, '').trim() || 'User';
+        const safeCourseName = getCourseName(selectedCourseId).replace(/[^a-zA-Z0-9ก-๙_\-\s]/g, '').trim() || 'Course';
+        const fileName = `${safeName}_${safeCourseName}_Report.xlsx`;
+
+        // Download file
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleViewDetail = (response) => {
@@ -646,6 +956,13 @@ const ResponseViewer = () => {
                             </div>
                         </div>
                     </div>
+                    <button
+                        onClick={exportUserReport}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl shadow-sm transition-colors"
+                    >
+                        <FileSpreadsheet size={18} />
+                        Export Report
+                    </button>
                 </div>
 
                 {userAllResponses.length === 0 ? (

@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Users, BookOpen, CheckCircle, TrendingUp, Calendar, ArrowRight, FileText } from 'lucide-react';
+import Users from 'lucide-react/dist/esm/icons/users';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import TrendingUp from 'lucide-react/dist/esm/icons/trending-up';
+import Calendar from 'lucide-react/dist/esm/icons/calendar';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
 import { Link } from 'react-router-dom';
 import DevSeeder from '../../components/DevSeeder';
 
@@ -41,12 +47,13 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Courses
-                const coursesSnapshot = await getDocs(collection(db, 'courses'));
-                const courses = coursesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                // Async-parallel: Fetch Courses and Responses concurrently
+                const [coursesSnapshot, responsesSnapshot] = await Promise.all([
+                    getDocs(collection(db, 'courses')),
+                    getDocs(collection(db, 'responses'))
+                ]);
 
-                // Responses
-                const responsesSnapshot = await getDocs(collection(db, 'responses'));
+                const courses = coursesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 setStats({
                     courses: courses.length,

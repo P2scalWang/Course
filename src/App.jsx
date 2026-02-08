@@ -8,6 +8,7 @@ import CourseManage from './pages/admin/CourseManage';
 import FormBuilder from './pages/admin/FormBuilder';
 import ResponseViewer from './pages/admin/ResponseViewer';
 import ResponseTable from './pages/admin/ResponseTable';
+import CalendarPage from './pages/admin/CalendarPage';
 import Login from './pages/admin/Login';
 
 import LiffLayout from './layouts/LiffLayout';
@@ -77,6 +78,13 @@ function App() {
               <Route path="trainees" element={
                 <ProtectedRoute allowedRoles={PERMISSIONS.MANAGE_TRAINEES}>
                   <TraineeList />
+                </ProtectedRoute>
+              } />
+
+              {/* Calendar - Admin & Staff */}
+              <Route path="calendar" element={
+                <ProtectedRoute allowedRoles={PERMISSIONS.VIEW_RESPONSES}>
+                  <CalendarPage />
                 </ProtectedRoute>
               } />
             </Route>

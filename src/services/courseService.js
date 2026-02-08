@@ -30,6 +30,19 @@ export const courseService = {
         }
     },
 
+    // Get course by Registration Key
+    getCourseByKey: async (key) => {
+        try {
+            const q = query(collection(db, COLLECTION_NAME), where('registrationKey', '==', key));
+            const snapshot = await getDocs(q);
+            if (snapshot.empty) return null;
+            return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        } catch (error) {
+            console.error("Error fetching course by key:", error);
+            throw error;
+        }
+    },
+
     // Create a new course
     createCourse: async (courseData) => {
         try {
@@ -108,6 +121,19 @@ export const courseService = {
 
             // 3. Call Serverless Function to Send Notifications
             if (userIds.length > 0) {
+                // Import Flex Message template dynamically to keep bundle size small
+                const { createCourseCompletionFlex } = await import('../lib/flexTemplates.js');
+
+                // Get LIFF ID from environment
+                const liffId = import.meta.env.VITE_LIFF_ID;
+
+                // Create Flex Message for course completion
+                const flexMessage = createCourseCompletionFlex({
+                    courseTitle,
+                    courseId: id,
+                    liffId
+                });
+
                 // Determine if running locally or on Vercel
                 // Local development requires 'vercel dev' to run functions at /api
                 // For now, we try relative path 
@@ -116,20 +142,11 @@ export const courseService = {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userIds,
-                        messages: [
-                            {
-                                type: 'text',
-                                text: `คอร์ส "${courseTitle}" ได้สิ้นสุดลงแล้ว! \nกรุณาทำแบบประเมินติดตามผลสัปดาห์ที่ 0 (ทันทีหลังจบคาบ) ที่เมนู "คอร์สของฉัน"`
-                            },
-                            {
-                                type: "sticker",
-                                packageId: "446",
-                                stickerId: "1988"
-                            }
-                        ]
+                        messages: [flexMessage]
                     })
                 }).catch(err => console.error("Failed to call notification API:", err));
             }
+
 
         } catch (error) {
             console.error("Error marking finished:", error);

@@ -10,6 +10,7 @@ import X from 'lucide-react/dist/esm/icons/x';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import Table from 'lucide-react/dist/esm/icons/table';
+import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -59,6 +60,12 @@ const AdminLayout = () => {
             path: '/admin/response-table',
             label: 'Response Table',
             icon: Table,
+            allowedRoles: PERMISSIONS.VIEW_RESPONSES
+        },
+        {
+            path: '/admin/calendar',
+            label: 'Calendar',
+            icon: CalendarIcon,
             allowedRoles: PERMISSIONS.VIEW_RESPONSES
         },
         {
