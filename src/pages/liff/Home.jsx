@@ -241,7 +241,7 @@ const LiffHome = () => {
 
             {/* Add Course Modal */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-end justify-center">
                     <div className="bg-white w-full max-w-md rounded-t-[2rem] p-6 pb-10 animate-slide-up">
                         {/* Modal Header */}
                         <div className="flex items-center justify-between mb-6">
