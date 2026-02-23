@@ -30,6 +30,41 @@ export const courseService = {
         }
     },
 
+    // Get courses by company ID
+    getCoursesByCompany: async (companyId) => {
+        try {
+            const q = query(
+                collection(db, COLLECTION_NAME),
+                where('companyId', '==', companyId),
+                orderBy('createdAt', 'desc')
+            );
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error("Error fetching courses by company:", error);
+            throw error;
+        }
+    },
+
+    // Get courses without a company (unassigned)
+    getUnassignedCourses: async () => {
+        try {
+            // Firestore doesn't support where('field', '==', null) well for missing fields
+            // So we fetch all and filter client-side
+            const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
+            return snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(course => !course.companyId);
+        } catch (error) {
+            console.error("Error fetching unassigned courses:", error);
+            throw error;
+        }
+    },
+
     // Get course by Registration Key
     getCourseByKey: async (key) => {
         try {

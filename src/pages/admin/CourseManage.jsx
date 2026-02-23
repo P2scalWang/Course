@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { courseService } from '../../services/courseService';
-import { collection, getDocs } from 'firebase/firestore';
+import { companyService } from '../../services/companyService';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Edit from 'lucide-react/dist/esm/icons/edit';
@@ -23,8 +24,10 @@ import Copy from 'lucide-react/dist/esm/icons/copy';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import Folder from 'lucide-react/dist/esm/icons/folder';
 import Bell from 'lucide-react/dist/esm/icons/bell';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
+import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import clsx from 'clsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const WEEKS = [0, 2, 4, 6, 8];
 
@@ -40,6 +43,9 @@ const generateRandomKey = () => {
 
 const CourseManage = () => {
     const navigate = useNavigate();
+    const { companyId } = useParams();
+    const [companyName, setCompanyName] = useState('');
+    const isUnassigned = companyId === '_unassigned';
     const [courses, setCourses] = useState([]);
     const [forms, setForms] = useState([]);
     const [folders, setFolders] = useState([]);
@@ -73,6 +79,16 @@ const CourseManage = () => {
         const loadAllData = async () => {
             setIsLoading(true);
             try {
+                // Fetch company name
+                if (companyId && !isUnassigned) {
+                    const snap = await getDoc(doc(db, 'companyFolders', companyId));
+                    if (snap.exists()) {
+                        setCompanyName(snap.data().name);
+                    }
+                } else if (isUnassigned) {
+                    setCompanyName('Unassigned');
+                }
+
                 // Parallel fetch all required data
                 await Promise.all([
                     fetchCourses(),
@@ -86,12 +102,18 @@ const CourseManage = () => {
             }
         };
         loadAllData();
-    }, []);
+    }, [companyId]);
 
     const fetchCourses = async () => {
-        // Individual loading removed to prevent flickering during initial load
         try {
-            const data = await courseService.getAllCourses();
+            let data;
+            if (isUnassigned) {
+                data = await courseService.getUnassignedCourses();
+            } else if (companyId) {
+                data = await courseService.getCoursesByCompany(companyId);
+            } else {
+                data = await courseService.getAllCourses();
+            }
             setCourses(data);
         } catch (error) {
             console.error("Failed to load courses", error);
@@ -133,6 +155,7 @@ const CourseManage = () => {
                 // Generate key for new course if not set
                 const dataToSave = {
                     ...formData,
+                    companyId: isUnassigned ? null : (companyId || null),
                     registrationKey: formData.registrationKey || generateRandomKey()
                 };
                 await courseService.createCourse(dataToSave);
@@ -306,10 +329,30 @@ const CourseManage = () => {
 
     return (
         <div className="space-y-6">
+            {/* Breadcrumb */}
+            {companyId && (
+                <div className="flex items-center gap-2 text-sm">
+                    <button
+                        onClick={() => navigate('/admin/courses')}
+                        className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+                    >
+                        <ArrowLeft size={16} />
+                        Company Folders
+                    </button>
+                    <span className="text-slate-300">/</span>
+                    <span className="text-slate-600 font-medium flex items-center gap-1.5">
+                        <Building2 size={14} className="text-slate-400" />
+                        {companyName || 'Loading...'}
+                    </span>
+                </div>
+            )}
+
             {/* Header / Actions */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Manage Courses</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">
+                        {companyName ? `${companyName} — Courses` : 'Manage Courses'}
+                    </h1>
                     <p className="text-slate-500 text-sm">Create and manage your training schedule.</p>
                 </div>
                 <button

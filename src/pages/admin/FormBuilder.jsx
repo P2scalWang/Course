@@ -278,7 +278,7 @@ const FormBuilder = () => {
                             <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                                 <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Folders</h3>
                             </div>
-                            <div className="p-2">
+                            <div className="p-2 max-h-[670px] overflow-y-auto">
                                 {/* All Forms */}
                                 <button
                                     onClick={() => setSelectedFolderId(null)}

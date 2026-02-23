@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import CourseManage from './pages/admin/CourseManage';
+import CompanyFolders from './pages/admin/CompanyFolders';
 import FormBuilder from './pages/admin/FormBuilder';
 import ResponseViewer from './pages/admin/ResponseViewer';
 import ResponseTable from './pages/admin/ResponseTable';
@@ -46,8 +47,15 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* Course Management - Admin Only */}
+              {/* Company Folders - Landing page for courses */}
               <Route path="courses" element={
+                <ProtectedRoute allowedRoles={PERMISSIONS.MANAGE_COURSES}>
+                  <CompanyFolders />
+                </ProtectedRoute>
+              } />
+
+              {/* Course Management - Filtered by Company */}
+              <Route path="courses/:companyId" element={
                 <ProtectedRoute allowedRoles={PERMISSIONS.MANAGE_COURSES}>
                   <CourseManage />
                 </ProtectedRoute>
