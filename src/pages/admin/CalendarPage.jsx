@@ -158,7 +158,7 @@ const CalendarPage = () => {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Calendar - Left Side */}
-                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200">
                         {/* Calendar Header */}
                         <div className="p-4 flex items-center justify-between bg-slate-50 border-b border-slate-200">
                             <button
@@ -261,7 +261,12 @@ const CalendarPage = () => {
 
                                         {/* Hover Tooltip */}
                                         {hasEvents && (
-                                            <div className="hidden group-hover:block absolute z-20 top-full left-0 mt-1 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl min-w-[180px] max-w-[250px]">
+                                            <div className={clsx(
+                                                "hidden group-hover:block absolute z-20 left-0 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl min-w-[180px] max-w-[250px]",
+                                                (blanks.length + day) > (Math.ceil((blanks.length + daysInMonth) / 7) - 1) * 7 - 6
+                                                    ? "bottom-full mb-1"
+                                                    : "top-full mt-1"
+                                            )}>
                                                 <div className="font-bold mb-2 text-slate-300">
                                                     📅 {day} {formatMonth(currentDate)}
                                                 </div>
