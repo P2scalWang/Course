@@ -9,7 +9,7 @@ import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
 import { Link } from 'react-router-dom';
-import DevSeeder from '../../components/DevSeeder';
+
 
 const StatCard = ({ title, value, icon: Icon, color, trend }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
@@ -173,21 +173,8 @@ const Dashboard = () => {
                             </Link>
                         </div>
                     </div>
-                    <div className="mt-8 pt-6 border-t border-white/10">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/20 rounded-lg">
-                                <Calendar size={20} />
-                            </div>
-                            <div>
-                                <p className="text-xs text-indigo-200">Next Scheduled Class</p>
-                                <p className="font-semibold">Digital Marketing 101</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
-
-            <DevSeeder />
         </div>
     );
 };
