@@ -1,5 +1,6 @@
 import React from 'react';
-import { AlertTriangle, RefreshCcw } from 'lucide-react';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import RefreshCcw from 'lucide-react/dist/esm/icons/refresh-ccw';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {

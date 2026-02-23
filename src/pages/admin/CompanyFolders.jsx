@@ -64,6 +64,7 @@ const CompanyFolders = () => {
             setCourseCounts(counts);
         } catch (error) {
             console.error("Failed to load data", error);
+            alert('เกิดข้อผิดพลาดในการโหลดข้อมูล กรุณาลองใหม่');
         } finally {
             setIsLoading(false);
         }
