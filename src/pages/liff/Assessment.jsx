@@ -14,7 +14,7 @@ import FileText from 'lucide-react/dist/esm/icons/file-text';
 import clsx from 'clsx';
 import SystemModal from '../../components/SystemModal';
 
-const WEEKS = [0, 2, 4, 6, 8];
+const WEEKS = ['pre', 0, 2, 4, 6, 8];
 
 const LiffAssessment = () => {
     const { courseId } = useParams();
@@ -74,6 +74,7 @@ const LiffAssessment = () => {
                 const today = new Date().toISOString().split('T')[0];
                 const available = WEEKS.filter(week => {
                     const formId = courseData.weekForms?.[week];
+                    if (week === 'pre') return !!formId; // Pre-training: available immediately
                     const weekDate = courseData.weekDates?.[week];
                     return formId && weekDate && weekDate <= today;
                 });
@@ -227,7 +228,7 @@ const LiffAssessment = () => {
                                                 "font-black text-3xl",
                                                 isSubmitted ? "text-emerald-200" : isAvailable ? "text-indigo-100 group-hover:text-indigo-200" : "text-slate-200"
                                             )}>
-                                                W{week}
+                                                {week === 'pre' ? 'Pre' : `W${week}`}
                                             </span>
                                             {isSubmitted ? (
                                                 <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
@@ -248,7 +249,7 @@ const LiffAssessment = () => {
                                             "font-bold text-lg mb-1",
                                             isSubmitted ? "text-emerald-800" : isAvailable ? "text-slate-800" : "text-slate-400"
                                         )}>
-                                            {week === 0 ? 'แบบประเมินก่อนเรียน' : `แบบประเมินสัปดาห์ที่ ${week}`}
+                                            {week === 'pre' ? 'แบบประเมิน Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`}
                                         </h3>
 
                                         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -285,7 +286,7 @@ const LiffAssessment = () => {
                     </button>
                     <div className="flex-1 text-right">
                         <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">
-                            Week {selectedWeek}
+                            {selectedWeek === 'pre' ? 'Pre-training' : selectedWeek === 0 ? 'Action Commitment' : `Week ${selectedWeek} Follow up`}
                         </span>
                     </div>
                 </div>

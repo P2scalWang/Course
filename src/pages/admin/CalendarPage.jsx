@@ -9,8 +9,9 @@ import BookOpen from 'lucide-react/dist/esm/icons/book-open';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import clsx from 'clsx';
 
-const WEEKS = [0, 2, 4, 6, 8];
+const WEEKS = ['pre', 0, 2, 4, 6, 8];
 const WEEK_COLORS = {
+    pre: { bg: 'bg-pink-500', text: 'text-white', light: 'bg-pink-50' },
     0: { bg: 'bg-emerald-500', text: 'text-white', light: 'bg-emerald-50' },
     2: { bg: 'bg-blue-500', text: 'text-white', light: 'bg-blue-50' },
     4: { bg: 'bg-violet-500', text: 'text-white', light: 'bg-violet-50' },
@@ -46,9 +47,10 @@ const CalendarPage = () => {
             if (course.weekDates) {
                 Object.entries(course.weekDates).forEach(([week, dateStr]) => {
                     if (dateStr) {
+                        const weekKey = week === 'pre' ? 'pre' : parseInt(week);
                         result.push({
                             date: dateStr,
-                            week: parseInt(week),
+                            week: weekKey,
                             courseId: course.id,
                             courseTitle: course.title,
                             status: course.status
@@ -242,11 +244,11 @@ const CalendarPage = () => {
                                                         WEEK_COLORS[event.week]?.bg,
                                                         WEEK_COLORS[event.week]?.text
                                                     )}
-                                                    title={`${event.courseTitle} - Week ${event.week}`}
+                                                    title={`${event.courseTitle} - ${event.week === 'pre' ? 'Pre-training' : event.week === 0 ? 'Action Commitment' : `Week ${event.week} Follow up`}`}
                                                 >
                                                     <BookOpen size={10} />
                                                     <span className="truncate">
-                                                        W{event.week} - {event.courseTitle.length > 8
+                                                        {event.week === 'pre' ? 'Pre' : `W${event.week}`} - {event.courseTitle.length > 8
                                                             ? event.courseTitle.substring(0, 8) + '..'
                                                             : event.courseTitle}
                                                     </span>
@@ -278,7 +280,7 @@ const CalendarPage = () => {
                                                                 WEEK_COLORS[event.week]?.bg,
                                                                 WEEK_COLORS[event.week]?.text
                                                             )}>
-                                                                W{event.week}
+                                                                {event.week === 'pre' ? 'Pre' : `W${event.week}`}
                                                             </span>
                                                             <span className="text-white">{event.courseTitle}</span>
                                                         </div>
@@ -296,7 +298,7 @@ const CalendarPage = () => {
                             {WEEKS.map(week => (
                                 <div key={week} className="flex items-center gap-1.5">
                                     <div className={clsx("w-3 h-3 rounded", WEEK_COLORS[week]?.bg)} />
-                                    <span className="text-xs text-slate-600">Week {week}</span>
+                                    <span className="text-xs text-slate-600">{week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `W${week} Follow up`}</span>
                                 </div>
                             ))}
                         </div>
@@ -380,7 +382,7 @@ const CalendarPage = () => {
                                                                 WEEK_COLORS[event.week]?.bg,
                                                                 WEEK_COLORS[event.week]?.text
                                                             )}>
-                                                                W{event.week}
+                                                                {event.week === 'pre' ? 'Pre' : `W${event.week}`}
                                                             </span>
                                                             <span className="text-sm text-slate-700 truncate">
                                                                 {event.courseTitle}

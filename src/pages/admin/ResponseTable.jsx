@@ -201,7 +201,7 @@ const ResponseTable = () => {
                                     : "bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed"
                             )}
                         >
-                            <span>{selectedWeek !== '' ? `Week ${selectedWeek}` : 'Choose week...'}</span>
+                            <span>{selectedWeek !== '' ? (selectedWeek === 'pre' ? 'Pre-training' : parseInt(selectedWeek) === 0 ? 'Action Commitment' : `Week ${selectedWeek} Follow up`) : 'Choose week...'}</span>
                             <ChevronDown size={16} className={clsx("transition-transform", weekDropdownOpen && "rotate-180")} />
                         </button>
                         {weekDropdownOpen && selectedCourseId && (
@@ -221,7 +221,7 @@ const ResponseTable = () => {
                                                 selectedWeek === week.toString() && "bg-indigo-50 text-indigo-700 font-medium"
                                             )}
                                         >
-                                            Week {week}
+                                            {week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`}
                                         </button>
                                     ))
                                 )}

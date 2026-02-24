@@ -29,7 +29,7 @@ import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import clsx from 'clsx';
 import { useNavigate, useParams } from 'react-router-dom';
 
-const WEEKS = [0, 2, 4, 6, 8];
+const WEEKS = ['pre', 0, 2, 4, 6, 8];
 
 // Generate random 6-character alphanumeric key
 const generateRandomKey = () => {
@@ -71,8 +71,8 @@ const CourseManage = () => {
         date: '', // Course end date (Week 0 starts here)
         capacity: 30,
         registrationKey: '',
-        weekForms: { 0: '', 2: '', 4: '', 6: '', 8: '' },
-        weekDates: { 0: '', 2: '', 4: '', 6: '', 8: '' }
+        weekForms: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' },
+        weekDates: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' }
     });
 
     useEffect(() => {
@@ -198,7 +198,7 @@ const CourseManage = () => {
 
     // Send weekly notification
     const handleSendWeeklyNotification = async (course, weekNumber) => {
-        if (!confirm(`Send Week ${weekNumber} notification to all trainees in "${course.title}"?`)) {
+        if (!confirm(`Send ${weekNumber === 'pre' ? 'Pre-training' : (weekNumber === 0 ? 'Week 0' : `Week ${weekNumber} Follow up`)} notification to all trainees in "${course.title}"?`)) {
             return;
         }
 
@@ -218,7 +218,7 @@ const CourseManage = () => {
             const data = await response.json();
 
             if (response.ok) {
-                alert(`✅ Week ${weekNumber} notification sent to ${data.sentTo} trainees!`);
+                alert(`✅ ${weekNumber === 0 ? 'Action Commitment' : `Week ${weekNumber} Follow up`} notification sent to ${data.sentTo} trainees!`);
             } else {
                 throw new Error(data.error || 'Failed to send notification');
             }
@@ -236,8 +236,8 @@ const CourseManage = () => {
             date: course.date,
             capacity: course.capacity,
             registrationKey: course.registrationKey || '',
-            weekForms: course.weekForms || { 0: '', 2: '', 4: '', 6: '', 8: '' },
-            weekDates: course.weekDates || { 0: '', 2: '', 4: '', 6: '', 8: '' }
+            weekForms: course.weekForms || { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' },
+            weekDates: course.weekDates || { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' }
         });
         setIsModalOpen(true);
     };
@@ -250,8 +250,8 @@ const CourseManage = () => {
             date: '',
             capacity: 30,
             registrationKey: '',
-            weekForms: { 0: '', 2: '', 4: '', 6: '', 8: '' },
-            weekDates: { 0: '', 2: '', 4: '', 6: '', 8: '' }
+            weekForms: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' },
+            weekDates: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' }
         });
     };
 
@@ -321,7 +321,11 @@ const CourseManage = () => {
         const newWeekDates = {};
         WEEKS.forEach(week => {
             const weekDate = new Date(baseDate);
-            weekDate.setDate(weekDate.getDate() + (week * 7)); // Add weeks
+            if (week === 'pre') {
+                weekDate.setDate(weekDate.getDate() - 7); // Pre-training = 1 week before W0
+            } else {
+                weekDate.setDate(weekDate.getDate() + (week * 7)); // Add weeks
+            }
             newWeekDates[week] = weekDate.toISOString().split('T')[0];
         });
         setFormData({ ...formData, weekDates: newWeekDates });
@@ -464,7 +468,7 @@ const CourseManage = () => {
                                             className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold border border-indigo-100 hover:bg-indigo-100 transition-colors group cursor-pointer"
                                         >
                                             <FileText size={14} />
-                                            {getLinkedFormsCount(course.weekForms)}/5 Forms
+                                            {getLinkedFormsCount(course.weekForms)}/6 Forms
                                             <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
                                         </button>
                                     </td>
@@ -502,7 +506,7 @@ const CourseManage = () => {
                                             <button
                                                 onClick={() => handleMarkFinished(course)}
                                                 disabled={course.isFinished}
-                                                title="Finish Class & Send Week 0 Notification"
+                                                title="Finish Class & Send Action Commitment Notification"
                                                 className={clsx(
                                                     "p-2 rounded-lg transition-colors border shadow-sm",
                                                     course.isFinished
@@ -541,7 +545,7 @@ const CourseManage = () => {
                                                                 className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition-colors"
                                                             >
                                                                 <Bell size={14} />
-                                                                Week {week} Follow-up
+                                                                Week {week} Follow up
                                                             </button>
                                                         ))}
                                                     </div>
@@ -705,7 +709,7 @@ const CourseManage = () => {
                                         <div key={week} className="grid grid-cols-12 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
                                             <div className="col-span-2">
                                                 <span className="inline-flex items-center justify-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
-                                                    Week {week}
+                                                    {week === 'pre' ? 'Pre' : week === 0 ? 'W0 AC' : `W${week} FU`}
                                                 </span>
                                             </div>
                                             <div className="col-span-4">

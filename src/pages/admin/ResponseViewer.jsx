@@ -242,7 +242,7 @@ const ResponseViewer = () => {
         courseResponses.some(r => r.userId === userId)
     ).length;
 
-    const allWeeks = [0, 2, 4, 6, 8]; // Expected weeks
+    const allWeeks = ['pre', 0, 2, 4, 6, 8]; // Expected weeks
 
     // Filtered users for Individual Summary
     const filteredUsers = uniqueUsers.filter(userId => {
@@ -375,7 +375,7 @@ const ResponseViewer = () => {
             { header: 'Position', key: 'position', width: 15 }
         ];
         allWeeks.forEach(week => {
-            summaryColumns.push({ header: `Week ${week}`, key: `week${week}`, width: 10 });
+            summaryColumns.push({ header: week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`, key: `week${week}`, width: 12 });
         });
         summaryColumns.push({ header: 'Completion %', key: 'completion', width: 12 });
 
@@ -389,7 +389,7 @@ const ResponseViewer = () => {
             const weekResponses = courseResponses.filter(r => r.week === week);
 
             if (weekResponses.length > 0) {
-                const weekSheet = workbook.addWorksheet(`Week ${week}`);
+                const weekSheet = workbook.addWorksheet(week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`);
 
                 // Define columns
                 const weekColumns = [
@@ -583,7 +583,7 @@ const ResponseViewer = () => {
 
             // Week header row
             addStyledRow({
-                week: `Week ${response.week}`,
+                week: response.week === 'pre' ? 'Pre-training' : response.week === 0 ? 'Action Commitment' : `Week ${response.week} Follow up`,
                 no: '',
                 question: 'Submitted At:',
                 answer: response.submittedAt?.toLocaleString() || '-'
@@ -666,7 +666,7 @@ const ResponseViewer = () => {
                                 <div className="flex justify-between items-center text-xs text-slate-500 border-t border-slate-100 pt-4">
                                     <span className="flex items-center gap-1">
                                         <Layers size={14} />
-                                        {getLinkedFormsCount(course)}/5 Forms Linked
+                                        {getLinkedFormsCount(course)}/6 Forms Linked
                                     </span>
                                     {course.responseCount > 0 && (
                                         <span className="flex items-center gap-1 text-indigo-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
@@ -752,7 +752,7 @@ const ResponseViewer = () => {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 text-lg">
-                                        {week === 0 ? 'Pre-Course (Week 0)' : `Week ${week}`}
+                                        {week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`}
                                     </h3>
                                     <p className="text-sm text-slate-500 mt-1">{count} assessments submitted</p>
                                 </div>
@@ -846,7 +846,7 @@ const ResponseViewer = () => {
                                     <th className="p-4 w-32">Department</th>
                                     <th className="p-4 w-32">Position</th>
                                     {allWeeks.map(week => (
-                                        <th key={week} className="p-4 text-center w-24 border-l border-slate-100">Week {week}</th>
+                                        <th key={week} className="p-4 text-center w-24 border-l border-slate-100">{week === 'pre' ? 'Pre' : week === 0 ? 'AC' : `W${week} FU`}</th>
                                     ))}
                                     <th className="p-4 text-center w-32 border-l border-slate-100">Completion</th>
                                     <th className="p-4 text-center w-32 border-l border-slate-100">Action</th>
