@@ -59,9 +59,9 @@ export default async function handler(req, res) {
         );
 
         const results = [];
-        // Week 0 is sent manually when Admin clicks "Finish Class"
-        // Cron only handles follow-up weeks (2, 4, 6, 8)
-        const WEEKS = [2, 4, 6, 8];
+        // Week 0 (Action Commitment) is sent manually when Admin clicks "Finish Class"
+        // Cron handles Pre-training and follow-up weeks
+        const WEEKS = ['pre', 2, 4, 6, 8];
 
         for (const courseDoc of coursesSnapshot.docs) {
             const course = { id: courseDoc.id, ...courseDoc.data() };
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
                     }
 
                     // Create Flex Message
-                    const flexMessage = week === 0
+                    const flexMessage = (week === 0 || week === 'pre')
                         ? createCourseCompletionFlex({ courseTitle: course.title, courseId: course.id, liffId: LIFF_ID })
                         : createWeeklyFollowUpFlex({ courseTitle: course.title, courseId: course.id, weekNumber: week, liffId: LIFF_ID });
 

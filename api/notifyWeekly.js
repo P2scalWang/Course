@@ -30,10 +30,10 @@ export default async function handler(req, res) {
         });
     }
 
-    const validWeeks = [0, 2, 4, 6, 8];
+    const validWeeks = ['pre', 0, 2, 4, 6, 8];
     if (!validWeeks.includes(weekNumber)) {
         return res.status(400).json({
-            error: 'Invalid weekNumber. Must be one of: 0, 2, 4, 6, 8'
+            error: 'Invalid weekNumber. Must be one of: pre, 0, 2, 4, 6, 8'
         });
     }
 
@@ -75,8 +75,8 @@ export default async function handler(req, res) {
         // 6. Generate appropriate Flex Message based on week
         let flexMessage;
 
-        if (weekNumber === 0) {
-            // Course completion message
+        if (weekNumber === 0 || weekNumber === 'pre') {
+            // Course completion / Pre-training message
             flexMessage = createCourseCompletionFlex({ courseTitle, courseId, liffId });
         } else {
             // Weekly follow-up message

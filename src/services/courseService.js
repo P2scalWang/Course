@@ -35,14 +35,19 @@ export const courseService = {
         try {
             const q = query(
                 collection(db, COLLECTION_NAME),
-                where('companyId', '==', companyId),
-                orderBy('createdAt', 'desc')
+                where('companyId', '==', companyId)
             );
             const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => ({
+            const courses = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+            // Sort client-side to avoid needing a composite index
+            return courses.sort((a, b) => {
+                const dateA = a.createdAt?.toDate?.() || new Date(0);
+                const dateB = b.createdAt?.toDate?.() || new Date(0);
+                return dateB - dateA;
+            });
         } catch (error) {
             console.error("Error fetching courses by company:", error);
             throw error;

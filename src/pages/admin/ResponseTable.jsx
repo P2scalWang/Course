@@ -101,7 +101,7 @@ const ResponseTable = () => {
     const getFilteredResponses = () => {
         return responses.filter(r => {
             if (selectedCourseId && r.courseId !== selectedCourseId) return false;
-            if (selectedWeek !== '' && r.week !== parseInt(selectedWeek)) return false;
+            if (selectedWeek !== '' && r.week !== (selectedWeek === 'pre' ? 'pre' : parseInt(selectedWeek))) return false;
             return true;
         });
     };
@@ -122,7 +122,7 @@ const ResponseTable = () => {
 
     const availableWeeks = getAvailableWeeks();
     const filteredResponses = getFilteredResponses();
-    const questions = selectedCourseId && selectedWeek !== '' ? getQuestionsForWeek(selectedCourseId, parseInt(selectedWeek)) : [];
+    const questions = selectedCourseId && selectedWeek !== '' ? getQuestionsForWeek(selectedCourseId, selectedWeek === 'pre' ? 'pre' : parseInt(selectedWeek)) : [];
 
     if (loading) {
         return (

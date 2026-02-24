@@ -596,7 +596,7 @@ const CourseManage = () => {
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                                         Course End Date
-                                        <span className="text-slate-400 font-normal ml-1 text-xs">(Week 0 starts here)</span>
+                                        <span className="text-slate-400 font-normal ml-1 text-xs">(Action Commitment starts here)</span>
                                     </label>
                                     <input
                                         type="date"
