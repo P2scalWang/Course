@@ -177,14 +177,20 @@ export const courseService = {
                 // Determine if running locally or on Vercel
                 // Local development requires 'vercel dev' to run functions at /api
                 // For now, we try relative path 
-                fetch('/api/notify', {
+                const response = await fetch('/api/notify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userIds,
                         messages: [flexMessage]
                     })
-                }).catch(err => console.error("Failed to call notification API:", err));
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error("Failed to call notification API:", errorData);
+                    throw new Error(errorData.error || "Failed to send notification via line API");
+                }
             }
 
 
