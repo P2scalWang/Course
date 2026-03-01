@@ -194,11 +194,10 @@ const CompanyFolders = () => {
                                 />
 
                                 <div className="p-5">
-                                    {/* Folder icon + title */}
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex items-center gap-3">
+                                    <div className="flex items-start justify-between mb-3 w-full">
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
                                             <div
-                                                className="p-2.5 rounded-xl transition-all duration-300"
+                                                className="p-2.5 rounded-xl transition-all duration-300 shrink-0"
                                                 style={{
                                                     backgroundColor: `${company.color || '#6366f1'}15`,
                                                 }}
@@ -217,12 +216,12 @@ const CompanyFolders = () => {
                                                     />
                                                 )}
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-base leading-tight group-hover:text-indigo-700 transition-colors">
+                                            <div className="min-w-0 flex-1 pr-2">
+                                                <h3 className="font-bold text-slate-800 text-base leading-tight group-hover:text-indigo-700 transition-colors truncate">
                                                     {company.name}
                                                 </h3>
                                                 {company.description && (
-                                                    <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">
+                                                    <p className="text-xs text-slate-400 mt-0.5 truncate w-full">
                                                         {company.description}
                                                     </p>
                                                 )}
