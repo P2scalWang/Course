@@ -10,7 +10,7 @@ export const liffService = {
         try {
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) {
-                liff.login();
+                liff.login({ redirectUri: window.location.href });
             }
             return true;
         } catch (error) {
