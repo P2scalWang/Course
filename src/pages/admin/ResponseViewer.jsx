@@ -70,7 +70,8 @@ const ResponseViewer = () => {
                 setSelectedWeek(null);
                 setSelectedUserId(null);
             } else if (weekParam !== null) {
-                setSelectedWeek(parseInt(weekParam));
+                // Fix: Handle 'pre' string which would evaluate to NaN if parsed as int
+                setSelectedWeek(weekParam === 'pre' ? 'pre' : parseInt(weekParam));
                 setViewMode('detail');
                 setSelectedUserId(null);
             } else {
