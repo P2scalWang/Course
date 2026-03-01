@@ -241,8 +241,8 @@ const CourseDetail = () => {
                                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Instructor" />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-800 text-sm">อ.ผู้เชี่ยวชาญ พิเศษ</p>
-                                <p className="text-xs text-slate-500">Senior Software Engineer</p>
+                                <p className="font-bold text-slate-800 text-sm">อาจารย์วีรพันธ์ มณีวงศ์ (โค้ชแจ๊ค)</p>
+                                <p className="text-xs text-slate-500">People and Organization Developer</p>
                             </div>
                         </div>
                     </div>
