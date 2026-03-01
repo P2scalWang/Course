@@ -237,8 +237,8 @@ const CourseDetail = () => {
                     <div>
                         <h3 className="text-lg font-bold text-slate-800 mb-3">ผู้สอน</h3>
                         <div className="flex items-center gap-4 p-4 border border-slate-100 rounded-2xl">
-                            <div className="w-12 h-12 bg-slate-200 rounded-full overflow-hidden">
-                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Instructor" />
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-100 shrink-0">
+                                <img src="/assets/images/instructor-jack.jpg" alt="Instructor" className="w-full h-full object-cover" />
                             </div>
                             <div>
                                 <p className="font-bold text-slate-800 text-sm">อาจารย์วีรพันธ์ มณีวงศ์ (โค้ชแจ๊ค)</p>
