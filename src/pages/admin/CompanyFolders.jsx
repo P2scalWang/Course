@@ -97,7 +97,8 @@ const CompanyFolders = () => {
                 await companyService.deleteCompany(company.id);
                 loadData();
             } catch (error) {
-                alert("Failed to delete company folder");
+                console.error("Delete Error:", error);
+                alert("Failed to delete company folder: " + (error.message || "Unknown error"));
             }
         }
     };
