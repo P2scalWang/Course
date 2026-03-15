@@ -121,7 +121,7 @@ const ResponseViewer = () => {
             // 3. Process Forms
             const formsMap = {};
             formsSnap.docs.forEach(doc => {
-                formsMap[doc.id] = { name: doc.data().name, questions: doc.data().questions || [] };
+                formsMap[doc.id] = { name: doc.data().name, questions: doc.data().questions || [], sections: doc.data().sections || null };
             });
             setFormTemplates(formsMap);
 
@@ -198,6 +198,13 @@ const ResponseViewer = () => {
         const course = getSelectedCourse(courseId);
         const formId = course?.weekForms?.[week];
         return formTemplates[formId]?.questions || [];
+    };
+
+    // Get sections for a specific week of a course (returns null if no sections)
+    const getSectionsForWeek = (courseId, week) => {
+        const course = getSelectedCourse(courseId);
+        const formId = course?.weekForms?.[week];
+        return formTemplates[formId]?.sections || null;
     };
 
     // Count linked forms for a course
@@ -391,8 +398,9 @@ const ResponseViewer = () => {
 
             if (weekResponses.length > 0) {
                 const weekSheet = workbook.addWorksheet(week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`);
+                const weekSections = getSectionsForWeek(selectedCourseId, week);
 
-                // Define columns
+                // Build column headers with section prefix if sections exist
                 const weekColumns = [
                     { header: 'Trainee ID', key: 'traineeId', width: 25 },
                     { header: 'Name', key: 'name', width: 20 },
@@ -400,13 +408,28 @@ const ResponseViewer = () => {
                     { header: 'Position', key: 'position', width: 15 },
                     { header: 'Submitted At', key: 'submittedAt', width: 20 }
                 ];
-                weekQuestions.forEach((q, idx) => {
-                    weekColumns.push({
-                        header: `Q${idx + 1}: ${q.text.length > 40 ? q.text.substring(0, 40) + '...' : q.text}`,
-                        key: `q${idx}`,
-                        width: 30
+
+                if (weekSections && weekSections.length > 1) {
+                    let qNum = 0;
+                    weekSections.forEach((section) => {
+                        section.questions.forEach((q) => {
+                            qNum++;
+                            weekColumns.push({
+                                header: `[${section.title}] Q${qNum}: ${q.text.length > 35 ? q.text.substring(0, 35) + '...' : q.text}`,
+                                key: `q${qNum - 1}`,
+                                width: 35
+                            });
+                        });
                     });
-                });
+                } else {
+                    weekQuestions.forEach((q, idx) => {
+                        weekColumns.push({
+                            header: `Q${idx + 1}: ${q.text.length > 40 ? q.text.substring(0, 40) + '...' : q.text}`,
+                            key: `q${idx}`,
+                            width: 30
+                        });
+                    });
+                }
                 weekSheet.columns = weekColumns;
 
                 const weekData = weekResponses.map(response => {
@@ -446,6 +469,7 @@ const ResponseViewer = () => {
         const worksheet = workbook.addWorksheet(`Week ${selectedWeek}`);
 
         const weekQuestions = getQuestionsForWeek(selectedCourseId, selectedWeek);
+        const weekSections = getSectionsForWeek(selectedCourseId, selectedWeek);
 
         // Define columns
         const columns = [
@@ -455,13 +479,28 @@ const ResponseViewer = () => {
             { header: 'Position', key: 'position', width: 15 },
             { header: 'Submitted At', key: 'submittedAt', width: 20 }
         ];
-        weekQuestions.forEach((q, idx) => {
-            columns.push({
-                header: `Q${idx + 1}: ${q.text.length > 50 ? q.text.substring(0, 50) + '...' : q.text}`,
-                key: `q${idx}`,
-                width: 30
+
+        if (weekSections && weekSections.length > 1) {
+            let qNum = 0;
+            weekSections.forEach((section) => {
+                section.questions.forEach((q) => {
+                    qNum++;
+                    columns.push({
+                        header: `[${section.title}] Q${qNum}: ${q.text.length > 35 ? q.text.substring(0, 35) + '...' : q.text}`,
+                        key: `q${qNum - 1}`,
+                        width: 35
+                    });
+                });
             });
-        });
+        } else {
+            weekQuestions.forEach((q, idx) => {
+                columns.push({
+                    header: `Q${idx + 1}: ${q.text.length > 50 ? q.text.substring(0, 50) + '...' : q.text}`,
+                    key: `q${idx}`,
+                    width: 30
+                });
+            });
+        }
         worksheet.columns = columns;
 
         const data = filteredResponses.map(response => {
@@ -581,6 +620,7 @@ const ResponseViewer = () => {
         // Add each week's data
         userAllResponses.forEach(response => {
             const weekQuestions = getQuestionsForWeek(selectedCourseId, response.week);
+            const weekSections = getSectionsForWeek(selectedCourseId, response.week);
 
             // Week header row
             addStyledRow({
@@ -590,16 +630,40 @@ const ResponseViewer = () => {
                 answer: response.submittedAt?.toLocaleString() || '-'
             }, true);
 
-            // Questions and answers for this week
-            weekQuestions.forEach((q, idx) => {
-                const answer = response.responses?.[idx];
-                addStyledRow({
-                    week: '',
-                    no: idx + 1,
-                    question: q.text,
-                    answer: Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-')
+            // Questions and answers for this week - with section headers if applicable
+            if (weekSections && weekSections.length > 1) {
+                let globalIdx = 0;
+                weekSections.forEach((section) => {
+                    // Section header row
+                    addStyledRow({
+                        week: '',
+                        no: '',
+                        question: `📋 ${section.title}`,
+                        answer: ''
+                    }, true);
+
+                    section.questions.forEach((q) => {
+                        const answer = response.responses?.[globalIdx];
+                        addStyledRow({
+                            week: '',
+                            no: globalIdx + 1,
+                            question: q.text,
+                            answer: Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-')
+                        });
+                        globalIdx++;
+                    });
                 });
-            });
+            } else {
+                weekQuestions.forEach((q, idx) => {
+                    const answer = response.responses?.[idx];
+                    addStyledRow({
+                        week: '',
+                        no: idx + 1,
+                        question: q.text,
+                        answer: Array.isArray(answer) ? answer.join(', ') : (answer !== null && answer !== undefined ? String(answer) : '-')
+                    });
+                });
+            }
 
             // Empty row separator between weeks
             worksheet.addRow({});
