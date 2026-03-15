@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './layouts/AdminLayout';
@@ -24,6 +24,21 @@ import { PERMISSIONS } from './lib/permissions';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const TraineeList = () => <div className="p-4">Trainee List (Coming Soon)</div>;
+
+const RootRedirect = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+
+  // If returning from LIFF login or opened inside LINE App, redirect to /liff
+  const isLiffCallback = searchParams.has('liff.state');
+  const isLineApp = /Line/i.test(navigator.userAgent);
+
+  if (isLineApp || isLiffCallback) {
+    return <Navigate to="/liff" replace />;
+  }
+
+  return <Navigate to="/admin" replace />;
+};
 
 function App() {
   return (
@@ -109,7 +124,7 @@ function App() {
             <Route path="/liff/course/:courseId" element={<CourseDetail />} />
 
             {/* Default Redirect */}
-            <Route path="/" element={<Navigate to="/admin" replace />} />
+            <Route path="/" element={<RootRedirect />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

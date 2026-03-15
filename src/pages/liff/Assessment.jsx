@@ -4,6 +4,7 @@ import { doc, getDoc, addDoc, collection, query, where, getDocs } from 'firebase
 import { db } from '../../lib/firebase';
 import { liffService } from '../../services/liffService';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
 import Send from 'lucide-react/dist/esm/icons/send';
 import Check from 'lucide-react/dist/esm/icons/check';
 import Calendar from 'lucide-react/dist/esm/icons/calendar';
@@ -40,14 +41,52 @@ const LiffAssessment = () => {
     const [availableWeeks, setAvailableWeeks] = useState([]);
     const [submittedWeeks, setSubmittedWeeks] = useState([]);
 
+    // Section navigation
+    const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+
+    // Derived: is the form section-based?
+    const hasSections = formTemplate?.sections && formTemplate.sections.length > 0;
+    const totalSections = hasSections ? formTemplate.sections.length : 1;
+
+    // For section-based forms, get the current section's questions
+    const currentSectionQuestions = hasSections
+        ? formTemplate.sections[currentSectionIndex]?.questions || []
+        : formTemplate?.questions || [];
+
+    // All questions flat (for progress and answer index mapping)
+    const allQuestions = hasSections
+        ? formTemplate.sections.flatMap(s => s.questions)
+        : formTemplate?.questions || [];
+
     const completedCount = Object.keys(answers).length;
-    const totalCount = formTemplate?.questions?.length || 0;
+    const totalCount = allQuestions.length;
     const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+    // Get the global question index offset for the current section
+    const getGlobalIndexOffset = (sectionIdx) => {
+        if (!hasSections) return 0;
+        let offset = 0;
+        for (let i = 0; i < sectionIdx; i++) {
+            offset += formTemplate.sections[i].questions.length;
+        }
+        return offset;
+    };
+
+    // Check if all questions in current section are answered
+    const isSectionComplete = () => {
+        const offset = getGlobalIndexOffset(currentSectionIndex);
+        for (let i = 0; i < currentSectionQuestions.length; i++) {
+            const answer = answers[offset + i];
+            if (answer === undefined || answer === '' || (Array.isArray(answer) && answer.length === 0)) {
+                return false;
+            }
+        }
+        return currentSectionQuestions.length > 0;
+    };
 
     useEffect(() => {
         const loadData = async () => {
             try {
-                // async-parallel: Fetch LIFF profile and Course data in parallel
                 const [profile, courseDoc] = await Promise.all([
                     liffService.init().then(() => liffService.getProfile()),
                     getDoc(doc(db, 'courses', courseId))
@@ -74,7 +113,7 @@ const LiffAssessment = () => {
                 const today = new Date().toISOString().split('T')[0];
                 const available = WEEKS.filter(week => {
                     const formId = courseData.weekForms?.[week];
-                    if (week === 'pre') return !!formId; // Pre-training: available immediately
+                    if (week === 'pre') return !!formId;
                     const weekDate = courseData.weekDates?.[week];
                     return formId && weekDate && weekDate <= today;
                 });
@@ -105,6 +144,7 @@ const LiffAssessment = () => {
             if (formDoc.exists()) {
                 setFormTemplate({ id: formDoc.id, ...formDoc.data() });
                 setAnswers({});
+                setCurrentSectionIndex(0);
             }
         }
     };
@@ -124,13 +164,27 @@ const LiffAssessment = () => {
         }));
     };
 
+    const handleNextSection = () => {
+        if (currentSectionIndex < totalSections - 1) {
+            setCurrentSectionIndex(prev => prev + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handlePrevSection = () => {
+        if (currentSectionIndex > 0) {
+            setCurrentSectionIndex(prev => prev - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formTemplate || selectedWeek === null) return;
 
         setSubmitting(true);
         try {
-            const responsesArray = formTemplate.questions.map((_, index) => {
+            const responsesArray = allQuestions.map((_, index) => {
                 const answer = answers[index];
                 return Array.isArray(answer) ? answer.join(', ') : (answer || '');
             });
@@ -142,7 +196,6 @@ const LiffAssessment = () => {
                 responses: responsesArray,
                 submittedAt: new Date()
             });
-            // Success Modal
             setModalConfig({
                 isOpen: true,
                 title: 'บันทึกข้อมูลสำเร็จ!',
@@ -150,11 +203,11 @@ const LiffAssessment = () => {
                 type: 'success',
                 onConfirm: () => {
                     setModalConfig(prev => ({ ...prev, isOpen: false }));
-                    // Logic to reset form (moved from below)
                     setSubmittedWeeks([...submittedWeeks, selectedWeek]);
                     setSelectedWeek(null);
                     setFormTemplate(null);
                     setAnswers({});
+                    setCurrentSectionIndex(0);
                 }
             });
         } catch (error) {
@@ -200,7 +253,6 @@ const LiffAssessment = () => {
                             const isAvailable = availableWeeks.includes(week);
                             const isSubmitted = submittedWeeks.includes(week);
                             const weekDate = course?.weekDates?.[week];
-                            // const hasForm = course?.weekForms?.[week];
 
                             return (
                                 <div key={week} className="relative">
@@ -273,16 +325,31 @@ const LiffAssessment = () => {
     }
 
     // ==========================================
-    // RENDER: Form View (Distraction Free)
+    // RENDER: Form View with Section Navigation
     // ==========================================
+    const isLastSection = currentSectionIndex === totalSections - 1;
+    const isFirstSection = currentSectionIndex === 0;
+    const currentSection = hasSections ? formTemplate.sections[currentSectionIndex] : null;
+    const globalOffset = getGlobalIndexOffset(currentSectionIndex);
+
     return (
         <div className="min-h-screen bg-white">
             {/* Minimal Header */}
             <div className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-30 px-6 py-4 pt-12 border-b border-slate-100">
-                <div className="flex items-center gap-4 mb-4">
-                    <button onClick={() => setSelectedWeek(null)} className="flex items-center gap-1 text-slate-500 font-medium hover:text-slate-800 transition-colors">
+                <div className="flex items-center gap-4 mb-3">
+                    <button
+                        onClick={() => {
+                            if (!isFirstSection) {
+                                handlePrevSection();
+                            } else {
+                                setSelectedWeek(null);
+                                setCurrentSectionIndex(0);
+                            }
+                        }}
+                        className="flex items-center gap-1 text-slate-500 font-medium hover:text-slate-800 transition-colors"
+                    >
                         <ArrowLeft size={20} />
-                        ก่อนหน้า
+                        {isFirstSection ? 'ก่อนหน้า' : 'Section ก่อนหน้า'}
                     </button>
                     <div className="flex-1 text-right">
                         <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">
@@ -290,6 +357,24 @@ const LiffAssessment = () => {
                         </span>
                     </div>
                 </div>
+
+                {/* Section Step Indicator */}
+                {hasSections && totalSections > 1 && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                        {formTemplate.sections.map((s, idx) => (
+                            <div
+                                key={idx}
+                                className={clsx(
+                                    "h-1.5 rounded-full transition-all duration-300 flex-1",
+                                    idx < currentSectionIndex ? "bg-indigo-600" :
+                                        idx === currentSectionIndex ? "bg-indigo-600" :
+                                            "bg-slate-200"
+                                )}
+                            />
+                        ))}
+                    </div>
+                )}
+
                 {/* Progress Bar */}
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
@@ -300,137 +385,214 @@ const LiffAssessment = () => {
             </div>
 
             {/* Questions Form */}
-            <div className="pt-32 pb-40 px-6 max-w-lg mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-slate-800 mb-2">{formTemplate.name}</h1>
-                    <p className="text-slate-500">ตอบคำถาม {formTemplate.questions.length} ข้อ</p>
-                </div>
+            <div className={clsx("pb-40 px-6 max-w-lg mx-auto", hasSections && totalSections > 1 ? "pt-40" : "pt-32")}>
+                {/* Section Header */}
+                {hasSections && currentSection && (
+                    <div className="mb-6">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                {currentSectionIndex + 1} / {totalSections}
+                            </span>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800">{currentSection.title}</h2>
+                        <p className="text-sm text-slate-400 mt-1">
+                            {currentSectionQuestions.length} ข้อ
+                        </p>
+                    </div>
+                )}
+
+                {/* Form title only on first section or non-section forms */}
+                {(!hasSections || isFirstSection) && (
+                    <div className="mb-8">
+                        <h1 className="text-2xl font-bold text-slate-800 mb-2">{formTemplate.name}</h1>
+                        {!hasSections && <p className="text-slate-500">ตอบคำถาม {allQuestions.length} ข้อ</p>}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-                    {formTemplate.questions.map((q, index) => (
-                        <div key={index} className="space-y-4 animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
-                            <div className="flex gap-3">
-                                <span className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md">
-                                    {index + 1}
-                                </span>
-                                <label className="font-bold text-slate-800 text-lg pt-1">
-                                    {q.text}
-                                </label>
+                    {currentSectionQuestions.map((q, localIndex) => {
+                        const globalIndex = globalOffset + localIndex;
+                        return (
+                            <div key={globalIndex} className="space-y-4 animate-fade-in-up" style={{ animationDelay: `${localIndex * 100}ms` }}>
+                                <div className="flex gap-3">
+                                    <span className="flex-shrink-0 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md">
+                                        {globalIndex + 1}
+                                    </span>
+                                    <div className="pt-1">
+                                        <label className="font-bold text-slate-800 text-lg">
+                                            {q.text?.split('\n')[0]}
+                                        </label>
+                                        {q.text?.includes('\n') && (
+                                            <p className="text-sm text-slate-500 mt-1 whitespace-pre-line leading-relaxed">
+                                                {q.text.split('\n').slice(1).join('\n')}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="pl-11">
+                                    {q.type === 'short' && (
+                                        <textarea
+                                            required
+                                            rows={3}
+                                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium resize-none"
+                                            placeholder="พิมพ์คำตอบของคุณที่นี่..."
+                                            value={answers[globalIndex] || ''}
+                                            onChange={e => handleInputChange(globalIndex, e.target.value)}
+                                        />
+                                    )}
+
+                                    {q.type === 'yesno' && (
+                                        <div className="flex gap-3">
+                                            {['Yes', 'No'].map(opt => (
+                                                <label key={opt} className="flex-1 cursor-pointer group">
+                                                    <input
+                                                        type="radio"
+                                                        name={`q-${globalIndex}`}
+                                                        value={opt}
+                                                        className="peer sr-only"
+                                                        checked={answers[globalIndex] === opt}
+                                                        onChange={e => handleInputChange(globalIndex, e.target.value)}
+                                                        required
+                                                    />
+                                                    <div className="py-3 px-4 rounded-xl border-2 border-slate-100 bg-white text-center font-bold text-slate-500 transition-all peer-checked:border-indigo-600 peer-checked:text-indigo-600 peer-checked:bg-indigo-50 peer-checked:shadow-inner group-active:scale-95">
+                                                        {opt === 'Yes' ? 'ใช่ / เห็นด้วย' : 'ไม่ใช่ / ไม่เห็นด้วย'}
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {q.type === 'rating' && (
+                                        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                                            {[1, 2, 3, 4, 5].map(rating => (
+                                                <label key={rating} className="cursor-pointer group relative">
+                                                    <input
+                                                        type="radio"
+                                                        name={`q-${globalIndex}`}
+                                                        value={rating}
+                                                        className="peer sr-only"
+                                                        checked={answers[globalIndex] === String(rating)}
+                                                        onChange={e => handleInputChange(globalIndex, e.target.value)}
+                                                        required
+                                                    />
+                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-slate-400 transition-all peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:shadow-lg peer-checked:scale-110 group-hover:bg-white group-hover:shadow-sm">
+                                                        {rating}
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {q.type === 'checkbox' && (
+                                        <div className="space-y-2">
+                                            {(q.options || []).map((opt, optIndex) => (
+                                                <label key={optIndex} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-indigo-200 transition-all group">
+                                                    <input
+                                                        type="checkbox"
+                                                        value={opt}
+                                                        className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        checked={Array.isArray(answers[globalIndex]) && answers[globalIndex].includes(opt)}
+                                                        onChange={e => {
+                                                            const rawCurrent = answers[globalIndex];
+                                                            const current = Array.isArray(rawCurrent) ? rawCurrent : (rawCurrent ? [rawCurrent] : []);
+
+                                                            const newValue = e.target.checked
+                                                                ? [...current, opt]
+                                                                : current.filter(v => v !== opt);
+                                                            handleInputChange(globalIndex, newValue);
+                                                        }}
+                                                    />
+                                                    <span className="font-medium text-slate-700 group-hover:text-indigo-700">{opt}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {q.type === 'multiple_choice' && (
+                                        <div className="space-y-2">
+                                            {(q.options || []).map((opt, optIndex) => (
+                                                <label key={optIndex} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-indigo-200 transition-all group">
+                                                    <input
+                                                        type="radio"
+                                                        name={`q-${globalIndex}`}
+                                                        value={opt}
+                                                        className="w-5 h-5 border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        checked={answers[globalIndex] === opt}
+                                                        onChange={e => handleInputChange(globalIndex, e.target.value)}
+                                                        required
+                                                    />
+                                                    <span className="font-medium text-slate-700 group-hover:text-indigo-700">{opt}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-
-                            <div className="pl-11">
-                                {q.type === 'short' && (
-                                    <textarea
-                                        required
-                                        rows={3}
-                                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium resize-none"
-                                        placeholder="พิมพ์คำตอบของคุณที่นี่..."
-                                        onChange={e => handleInputChange(index, e.target.value)}
-                                    />
-                                )}
-
-                                {q.type === 'yesno' && (
-                                    <div className="flex gap-3">
-                                        {['Yes', 'No'].map(opt => (
-                                            <label key={opt} className="flex-1 cursor-pointer group">
-                                                <input
-                                                    type="radio"
-                                                    name={`q-${index}`}
-                                                    value={opt}
-                                                    className="peer sr-only"
-                                                    onChange={e => handleInputChange(index, e.target.value)}
-                                                    required
-                                                />
-                                                <div className="py-3 px-4 rounded-xl border-2 border-slate-100 bg-white text-center font-bold text-slate-500 transition-all peer-checked:border-indigo-600 peer-checked:text-indigo-600 peer-checked:bg-indigo-50 peer-checked:shadow-inner group-active:scale-95">
-                                                    {opt === 'Yes' ? 'ใช่ / เห็นด้วย' : 'ไม่ใช่ / ไม่เห็นด้วย'}
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {q.type === 'rating' && (
-                                    <div className="flex justify-between items-center bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                                        {[1, 2, 3, 4, 5].map(rating => (
-                                            <label key={rating} className="cursor-pointer group relative">
-                                                <input
-                                                    type="radio"
-                                                    name={`q-${index}`}
-                                                    value={rating}
-                                                    className="peer sr-only"
-                                                    onChange={e => handleInputChange(index, e.target.value)}
-                                                    required
-                                                />
-                                                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-slate-400 transition-all peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:shadow-lg peer-checked:scale-110 group-hover:bg-white group-hover:shadow-sm">
-                                                    {rating}
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {q.type === 'checkbox' && (
-                                    <div className="space-y-2">
-                                        {(q.options || []).map((opt, optIndex) => (
-                                            <label key={optIndex} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-indigo-200 transition-all group">
-                                                <input
-                                                    type="checkbox"
-                                                    value={opt}
-                                                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                                    onChange={e => {
-                                                        const rawCurrent = answers[index];
-                                                        const current = Array.isArray(rawCurrent) ? rawCurrent : (rawCurrent ? [rawCurrent] : []);
-
-                                                        const newValue = e.target.checked
-                                                            ? [...current, opt]
-                                                            : current.filter(v => v !== opt);
-                                                        handleInputChange(index, newValue);
-                                                    }}
-                                                />
-                                                <span className="font-medium text-slate-700 group-hover:text-indigo-700">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {q.type === 'multiple_choice' && (
-                                    <div className="space-y-2">
-                                        {(q.options || []).map((opt, optIndex) => (
-                                            <label key={optIndex} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-indigo-200 transition-all group">
-                                                <input
-                                                    type="radio"
-                                                    name={`q-${index}`}
-                                                    value={opt}
-                                                    className="w-5 h-5 border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                                    onChange={e => handleInputChange(index, e.target.value)}
-                                                    required
-                                                />
-                                                <span className="font-medium text-slate-700 group-hover:text-indigo-700">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </form>
             </div>
 
-            {/* Sticky Submit Button */}
+            {/* Sticky Bottom Navigation */}
             <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-50 pb-safe z-40">
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitting || progress < 100}
-                    className={clsx(
-                        "w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-xl",
-                        progress === 100
-                            ? "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 active:scale-95"
-                            : "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
-                    )}
-                >
-                    {submitting ? 'กำลังส่งคำตอบ...' : 'ส่งแบบประเมิน'}
-                    {!submitting && <Send size={20} />}
-                </button>
+                {hasSections && totalSections > 1 ? (
+                    <div className="space-y-3">
+                        {/* Section Navigation */}
+                        <div className="flex gap-3">
+                            {!isFirstSection && (
+                                <button
+                                    onClick={handlePrevSection}
+                                    className="flex-1 py-3.5 rounded-2xl font-bold text-base flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+                                >
+                                    <ArrowLeft size={18} />
+                                    ก่อนหน้า
+                                </button>
+                            )}
+                            {!isLastSection ? (
+                                <button
+                                    onClick={handleNextSection}
+                                    className={clsx(
+                                        "flex-1 py-3.5 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95",
+                                        "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700"
+                                    )}
+                                >
+                                    ถัดไป
+                                    <ArrowRight size={18} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={submitting || progress < 100}
+                                    className={clsx(
+                                        "flex-1 py-3.5 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all shadow-xl",
+                                        progress === 100
+                                            ? "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 active:scale-95"
+                                            : "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
+                                    )}
+                                >
+                                    {submitting ? 'กำลังส่งคำตอบ...' : 'ส่งแบบประเมิน'}
+                                    {!submitting && <Send size={18} />}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    /* Single section / legacy form - submit button */
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting || progress < 100}
+                        className={clsx(
+                            "w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-xl",
+                            progress === 100
+                                ? "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 active:scale-95"
+                                : "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
+                        )}
+                    >
+                        {submitting ? 'กำลังส่งคำตอบ...' : 'ส่งแบบประเมิน'}
+                        {!submitting && <Send size={20} />}
+                    </button>
+                )}
             </div>
             {/* System Modal */}
             <SystemModal

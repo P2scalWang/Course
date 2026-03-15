@@ -11,8 +11,9 @@ import LayoutTemplate from 'lucide-react/dist/esm/icons/layout-template';
 import Pencil from 'lucide-react/dist/esm/icons/pencil';
 import FolderPlus from 'lucide-react/dist/esm/icons/folder-plus';
 import Folder from 'lucide-react/dist/esm/icons/folder';
-import FolderOpen from 'lucide-react/dist/esm/icons/folder-open';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import Layers from 'lucide-react/dist/esm/icons/layers';
 import clsx from 'clsx';
 
 const FOLDER_COLORS = [
@@ -28,6 +29,10 @@ const FOLDER_COLORS = [
     '#64748b', // slate
 ];
 
+const SECTION_COLORS = [
+    '#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#22c55e', '#0ea5e9', '#f43f5e', '#14b8a6', '#eab308', '#64748b',
+];
+
 const FormBuilder = () => {
     const [forms, setForms] = useState([]);
     const [folders, setFolders] = useState([]);
@@ -35,7 +40,7 @@ const FormBuilder = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
     const [formName, setFormName] = useState('');
-    const [questions, setQuestions] = useState([]);
+    const [sections, setSections] = useState([{ title: 'Section 1', questions: [], collapsed: false }]);
     const [editingFormId, setEditingFormId] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -51,7 +56,6 @@ const FormBuilder = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // async-parallel: Parallel fetch folders and forms
             const [foldersSnapshot, formsSnapshot] = await Promise.all([
                 getDocs(collection(db, 'formFolders')),
                 getDocs(collection(db, 'formTemplates'))
@@ -112,12 +116,10 @@ const FormBuilder = () => {
     const handleDeleteFolder = async (folderId) => {
         if (confirm('Delete this folder? Forms in this folder will become uncategorized.')) {
             try {
-                // Remove folderId from all forms in this folder
                 const formsInFolder = forms.filter(f => f.folderId === folderId);
                 for (const form of formsInFolder) {
                     await updateDoc(doc(db, 'formTemplates', form.id), { folderId: null });
                 }
-                // Delete folder
                 await deleteDoc(doc(db, 'formFolders', folderId));
                 if (selectedFolderId === folderId) {
                     setSelectedFolderId(null);
@@ -137,50 +139,128 @@ const FormBuilder = () => {
         setEditingFolderId(null);
     };
 
-    // --- Form Functions ---
-    const addQuestion = () => {
-        setQuestions([...questions, { text: '', type: 'short', options: [] }]);
+    // --- Section Functions ---
+    const addSection = () => {
+        setSections(prev => [...prev, { title: `Section ${prev.length + 1}`, questions: [], collapsed: false }]);
     };
 
-    const updateQuestion = (index, field, value) => {
-        const updated = [...questions];
-        updated[index][field] = value;
-        if (field === 'type') {
-            if (value === 'checkbox' || value === 'multiple_choice') {
-                updated[index].options = updated[index].options?.length > 0 ? updated[index].options : [''];
-            } else {
-                updated[index].options = [];
-            }
+    const updateSectionTitle = (sectionIndex, title) => {
+        setSections(prev => {
+            const updated = [...prev];
+            updated[sectionIndex] = { ...updated[sectionIndex], title };
+            return updated;
+        });
+    };
+
+    const toggleSectionCollapse = (sectionIndex) => {
+        setSections(prev => {
+            const updated = [...prev];
+            updated[sectionIndex] = { ...updated[sectionIndex], collapsed: !updated[sectionIndex].collapsed };
+            return updated;
+        });
+    };
+
+    const removeSection = (sectionIndex) => {
+        if (sections.length <= 1) {
+            alert('ต้องมีอย่างน้อย 1 Section');
+            return;
         }
-        setQuestions(updated);
+        setSections(prev => {
+            const removed = prev[sectionIndex];
+            const updated = prev.filter((_, i) => i !== sectionIndex);
+            // Move questions to previous section (or first section if removing index 0)
+            const targetIdx = sectionIndex > 0 ? sectionIndex - 1 : 0;
+            updated[targetIdx] = {
+                ...updated[targetIdx],
+                questions: [...updated[targetIdx].questions, ...removed.questions]
+            };
+            return updated;
+        });
     };
 
-    const addOption = (questionIndex) => {
-        const updated = [...questions];
-        updated[questionIndex].options = [...(updated[questionIndex].options || []), ''];
-        setQuestions(updated);
+    // --- Question Functions (section-aware) ---
+    const addQuestion = (sectionIndex) => {
+        setSections(prev => {
+            const updated = [...prev];
+            updated[sectionIndex] = {
+                ...updated[sectionIndex],
+                questions: [...updated[sectionIndex].questions, { text: '', type: 'short', options: [] }]
+            };
+            return updated;
+        });
     };
 
-    const updateOption = (questionIndex, optionIndex, value) => {
-        const updated = [...questions];
-        updated[questionIndex].options[optionIndex] = value;
-        setQuestions(updated);
+    const updateQuestion = (sectionIndex, questionIndex, field, value) => {
+        setSections(prev => {
+            const updated = [...prev];
+            const questions = [...updated[sectionIndex].questions];
+            questions[questionIndex] = { ...questions[questionIndex], [field]: value };
+            if (field === 'type') {
+                if (value === 'checkbox' || value === 'multiple_choice') {
+                    questions[questionIndex].options = questions[questionIndex].options?.length > 0 ? questions[questionIndex].options : [''];
+                } else {
+                    questions[questionIndex].options = [];
+                }
+            }
+            updated[sectionIndex] = { ...updated[sectionIndex], questions };
+            return updated;
+        });
     };
 
-    const removeOption = (questionIndex, optionIndex) => {
-        const updated = [...questions];
-        updated[questionIndex].options = updated[questionIndex].options.filter((_, i) => i !== optionIndex);
-        setQuestions(updated);
+    const addOption = (sectionIndex, questionIndex) => {
+        setSections(prev => {
+            const updated = [...prev];
+            const questions = [...updated[sectionIndex].questions];
+            questions[questionIndex] = {
+                ...questions[questionIndex],
+                options: [...(questions[questionIndex].options || []), '']
+            };
+            updated[sectionIndex] = { ...updated[sectionIndex], questions };
+            return updated;
+        });
     };
 
-    const removeQuestion = (index) => {
-        setQuestions(questions.filter((_, i) => i !== index));
+    const updateOption = (sectionIndex, questionIndex, optionIndex, value) => {
+        setSections(prev => {
+            const updated = [...prev];
+            const questions = [...updated[sectionIndex].questions];
+            const options = [...questions[questionIndex].options];
+            options[optionIndex] = value;
+            questions[questionIndex] = { ...questions[questionIndex], options };
+            updated[sectionIndex] = { ...updated[sectionIndex], questions };
+            return updated;
+        });
     };
 
+    const removeOption = (sectionIndex, questionIndex, optionIndex) => {
+        setSections(prev => {
+            const updated = [...prev];
+            const questions = [...updated[sectionIndex].questions];
+            questions[questionIndex] = {
+                ...questions[questionIndex],
+                options: questions[questionIndex].options.filter((_, i) => i !== optionIndex)
+            };
+            updated[sectionIndex] = { ...updated[sectionIndex], questions };
+            return updated;
+        });
+    };
+
+    const removeQuestion = (sectionIndex, questionIndex) => {
+        setSections(prev => {
+            const updated = [...prev];
+            updated[sectionIndex] = {
+                ...updated[sectionIndex],
+                questions: updated[sectionIndex].questions.filter((_, i) => i !== questionIndex)
+            };
+            return updated;
+        });
+    };
+
+    // --- Form Functions ---
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setFormName('');
-        setQuestions([]);
+        setSections([{ title: 'Section 1', questions: [], collapsed: false }]);
         setEditingFormId(null);
     };
 
@@ -189,15 +269,26 @@ const FormBuilder = () => {
             alert('Please enter a form name');
             return;
         }
-        if (questions.length === 0) {
+        const totalQuestions = sections.reduce((sum, s) => sum + s.questions.length, 0);
+        if (totalQuestions === 0) {
             alert('Please add at least one question');
             return;
         }
 
         try {
+            // Prepare sections data (without collapsed state)
+            const sectionsData = sections.map(s => ({
+                title: s.title,
+                questions: s.questions
+            }));
+
+            // Flat questions for backward compat
+            const flatQuestions = sections.flatMap(s => s.questions);
+
             const formData = {
                 name: formName,
-                questions: questions,
+                sections: sectionsData,
+                questions: flatQuestions,
                 folderId: selectedFolderId || null
             };
 
@@ -220,7 +311,12 @@ const FormBuilder = () => {
     const handleEditForm = (form) => {
         setEditingFormId(form.id);
         setFormName(form.name);
-        setQuestions(form.questions || []);
+        // If form has sections, use them; otherwise wrap all questions in one section
+        if (form.sections && form.sections.length > 0) {
+            setSections(form.sections.map(s => ({ ...s, collapsed: false })));
+        } else {
+            setSections([{ title: 'Section 1', questions: form.questions || [], collapsed: false }]);
+        }
         setIsModalOpen(true);
     };
 
@@ -242,6 +338,15 @@ const FormBuilder = () => {
     };
 
     const uncategorizedCount = forms.filter(f => !f.folderId).length;
+
+    // Helper: get running question number across sections
+    const getQuestionNumber = (sectionIndex, questionIndex) => {
+        let num = 0;
+        for (let i = 0; i < sectionIndex; i++) {
+            num += sections[i].questions.length;
+        }
+        return num + questionIndex + 1;
+    };
 
     return (
         <div className="space-y-6">
@@ -412,10 +517,16 @@ const FormBuilder = () => {
                                         <div className="flex justify-between items-start mb-4 pl-2">
                                             <div>
                                                 <h3 className="font-bold text-slate-800 text-lg leading-tight">{form.name}</h3>
-                                                <div className="flex items-center gap-2 mt-1">
+                                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                     <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-md font-medium">
                                                         {form.questions?.length || 0} Questions
                                                     </span>
+                                                    {form.sections && form.sections.length > 1 && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-600 text-xs rounded-md font-medium">
+                                                            <Layers size={12} />
+                                                            {form.sections.length} Sections
+                                                        </span>
+                                                    )}
                                                     {form.folderId && (
                                                         <span
                                                             className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md font-medium"
@@ -565,122 +676,188 @@ const FormBuilder = () => {
                                 />
                             </div>
 
+                            {/* Section List */}
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center px-1">
-                                    <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Questions</label>
+                                    <label className="text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                                        <Layers size={16} className="text-indigo-500" />
+                                        Sections ({sections.length})
+                                    </label>
                                     <button
                                         type="button"
-                                        onClick={addQuestion}
-                                        className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                        onClick={addSection}
+                                        className="text-sm font-semibold text-violet-600 hover:text-violet-700 hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                                     >
-                                        <Plus size={16} /> Add Question
+                                        <Plus size={16} /> Add Section
                                     </button>
                                 </div>
 
-                                {questions.map((q, index) => (
-                                    <div key={index} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm group hover:border-indigo-300 transition-colors">
-                                        <div className="flex gap-3 items-start">
-                                            <div className="mt-3 text-slate-300 cursor-move">
-                                                <GripVertical size={20} />
-                                            </div>
-                                            <div className="flex-1 space-y-3">
-                                                <input
-                                                    type="text"
-                                                    placeholder={`Question ${index + 1}`}
-                                                    className="w-full p-2 border-b-2 border-slate-100 focus:border-indigo-500 outline-none font-medium text-slate-800 bg-transparent transition-colors placeholder:font-normal"
-                                                    value={q.text}
-                                                    onChange={e => updateQuestion(index, 'text', e.target.value)}
-                                                />
-                                                <div className="flex items-center gap-4">
-                                                    <select
-                                                        className="text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-slate-600 font-medium"
-                                                        value={q.type}
-                                                        onChange={e => updateQuestion(index, 'type', e.target.value)}
-                                                    >
-                                                        <option value="short">Short Answer</option>
-                                                        <option value="yesno">Yes / No</option>
-                                                        <option value="rating">Rating (1-5)</option>
-                                                        <option value="checkbox">Checkbox (เลือกได้หลายข้อ)</option>
-                                                        <option value="multiple_choice">Multiple Choice (ตัวเลือกเดียว + โปรดระบุ)</option>
-                                                    </select>
-                                                    <div className="h-4 w-px bg-slate-200"></div>
-                                                    <span className="text-xs text-slate-400">Required</span>
+                                {sections.map((section, sectionIndex) => {
+                                    const sectionColor = SECTION_COLORS[sectionIndex % SECTION_COLORS.length];
+                                    return (
+                                        <div
+                                            key={sectionIndex}
+                                            className="bg-white rounded-xl border-2 shadow-sm overflow-hidden transition-colors"
+                                            style={{ borderColor: sectionColor + '40' }}
+                                        >
+                                            {/* Section Header */}
+                                            <div
+                                                className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
+                                                style={{ backgroundColor: sectionColor + '08' }}
+                                                onClick={() => toggleSectionCollapse(sectionIndex)}
+                                            >
+                                                <div
+                                                    className="w-2 h-8 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: sectionColor }}
+                                                ></div>
+                                                <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                                                    <input
+                                                        type="text"
+                                                        value={section.title}
+                                                        onChange={e => updateSectionTitle(sectionIndex, e.target.value)}
+                                                        className="w-full bg-transparent font-bold text-slate-800 outline-none border-b-2 border-transparent focus:border-indigo-400 transition-colors text-base"
+                                                        placeholder="ชื่อ Section..."
+                                                    />
                                                 </div>
+                                                <span className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: sectionColor + '20', color: sectionColor }}>
+                                                    {section.questions.length} ข้อ
+                                                </span>
+                                                {sections.length > 1 && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); removeSection(sectionIndex); }}
+                                                        className="p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors flex-shrink-0"
+                                                        title="ลบ Section (ย้ายคำถามไป Section ก่อนหน้า)"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                                <div className="flex-shrink-0 text-slate-400">
+                                                    {section.collapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                                                </div>
+                                            </div>
 
-                                                {/* Options Editor for Checkbox & Multiple Choice */}
-                                                {(q.type === 'checkbox' || q.type === 'multiple_choice') && (
-                                                    <div className="mt-3 pl-4 border-l-2 border-indigo-100 space-y-2">
-                                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">ตัวเลือก</label>
-                                                        {(q.options || []).map((opt, optIndex) => (
-                                                            <div key={optIndex} className="flex items-center gap-2">
-                                                                <div className={clsx(
-                                                                    "w-4 h-4 border-2 flex-shrink-0",
-                                                                    q.type === 'checkbox' ? "rounded border-slate-300" : "rounded-full border-slate-300"
-                                                                )}></div>
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={`ตัวเลือก ${optIndex + 1}`}
-                                                                    className="flex-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                                                    value={opt}
-                                                                    onChange={e => updateOption(index, optIndex, e.target.value)}
-                                                                />
+                                            {/* Section Questions (Collapsible) */}
+                                            {!section.collapsed && (
+                                                <div className="p-4 space-y-3 border-t" style={{ borderColor: sectionColor + '20' }}>
+                                                    {section.questions.map((q, questionIndex) => (
+                                                        <div key={questionIndex} className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 group hover:border-indigo-300 transition-colors">
+                                                            <div className="flex gap-3 items-start">
+                                                                <div className="mt-3 text-slate-300 cursor-move">
+                                                                    <GripVertical size={20} />
+                                                                </div>
+                                                                <div className="flex-1 space-y-3">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="text-xs font-bold text-slate-400">Q{getQuestionNumber(sectionIndex, questionIndex)}</span>
+                                                                    </div>
+                                                                    <textarea
+                                                                        placeholder={`Question ${getQuestionNumber(sectionIndex, questionIndex)}\nสามารถ Enter เพื่อเพิ่มคำอธิบายได้`}
+                                                                        className="w-full p-2 border-b-2 border-slate-100 focus:border-indigo-500 outline-none font-medium text-slate-800 bg-transparent transition-colors placeholder:font-normal resize-none"
+                                                                        rows={q.text && q.text.includes('\n') ? Math.min(q.text.split('\n').length + 1, 8) : 2}
+                                                                        value={q.text}
+                                                                        onChange={e => updateQuestion(sectionIndex, questionIndex, 'text', e.target.value)}
+                                                                    />
+                                                                    <div className="flex items-center gap-4">
+                                                                        <select
+                                                                            className="text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-slate-600 font-medium"
+                                                                            value={q.type}
+                                                                            onChange={e => updateQuestion(sectionIndex, questionIndex, 'type', e.target.value)}
+                                                                        >
+                                                                            <option value="short">Short Answer</option>
+                                                                            <option value="yesno">Yes / No</option>
+                                                                            <option value="rating">Rating (1-5)</option>
+                                                                            <option value="checkbox">Checkbox (เลือกได้หลายข้อ)</option>
+                                                                            <option value="multiple_choice">Multiple Choice (ตัวเลือกเดียว + โปรดระบุ)</option>
+                                                                        </select>
+                                                                        <div className="h-4 w-px bg-slate-200"></div>
+                                                                        <span className="text-xs text-slate-400">Required</span>
+                                                                    </div>
+
+                                                                    {/* Options Editor for Checkbox & Multiple Choice */}
+                                                                    {(q.type === 'checkbox' || q.type === 'multiple_choice') && (
+                                                                        <div className="mt-3 pl-4 border-l-2 border-indigo-100 space-y-2">
+                                                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">ตัวเลือก</label>
+                                                                            {(q.options || []).map((opt, optIndex) => (
+                                                                                <div key={optIndex} className="flex items-center gap-2">
+                                                                                    <div className={clsx(
+                                                                                        "w-4 h-4 border-2 flex-shrink-0",
+                                                                                        q.type === 'checkbox' ? "rounded border-slate-300" : "rounded-full border-slate-300"
+                                                                                    )}></div>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        placeholder={`ตัวเลือก ${optIndex + 1}`}
+                                                                                        className="flex-1 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                                        value={opt}
+                                                                                        onChange={e => updateOption(sectionIndex, questionIndex, optIndex, e.target.value)}
+                                                                                    />
+                                                                                    <button
+                                                                                        onClick={() => removeOption(sectionIndex, questionIndex, optIndex)}
+                                                                                        className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                                                                    >
+                                                                                        <X size={14} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            ))}
+                                                                            {q.type === 'multiple_choice' && (
+                                                                                <div className="flex items-center gap-2 opacity-60">
+                                                                                    <div className="w-4 h-4 border-2 rounded-full border-slate-300 flex-shrink-0"></div>
+                                                                                    <span className="text-sm text-slate-500 italic">อื่นๆ (โปรดระบุ...)</span>
+                                                                                </div>
+                                                                            )}
+                                                                            <button
+                                                                                onClick={() => addOption(sectionIndex, questionIndex)}
+                                                                                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                                                            >
+                                                                                <Plus size={14} /> เพิ่มตัวเลือก
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                                 <button
-                                                                    onClick={() => removeOption(index, optIndex)}
-                                                                    className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                                                    onClick={() => removeQuestion(sectionIndex, questionIndex)}
+                                                                    className="p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors"
                                                                 >
-                                                                    <X size={14} />
+                                                                    <Trash2 size={18} />
                                                                 </button>
                                                             </div>
-                                                        ))}
-                                                        {q.type === 'multiple_choice' && (
-                                                            <div className="flex items-center gap-2 opacity-60">
-                                                                <div className="w-4 h-4 border-2 rounded-full border-slate-300 flex-shrink-0"></div>
-                                                                <span className="text-sm text-slate-500 italic">อื่นๆ (โปรดระบุ...)</span>
-                                                            </div>
-                                                        )}
-                                                        <button
-                                                            onClick={() => addOption(index)}
-                                                            className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                                                        >
-                                                            <Plus size={14} /> เพิ่มตัวเลือก
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={() => removeQuestion(index)}
-                                                className="p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                                        </div>
+                                                    ))}
 
-                                {questions.length === 0 && (
-                                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center" onClick={addQuestion}>
-                                        <p className="text-slate-400 text-sm mb-2">No questions added yet.</p>
-                                        <button className="text-indigo-600 font-semibold text-sm hover:underline">Click to add your first question</button>
-                                    </div>
-                                )}
+                                                    {/* Add Question Button within Section */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addQuestion(sectionIndex)}
+                                                        className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Plus size={16} /> Add Question
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
                         {/* Footer - Sticky */}
-                        <div className="p-4 border-t border-slate-100 bg-white rounded-b-2xl flex justify-end gap-3 z-10">
-                            <button
-                                onClick={handleCloseModal}
-                                className="px-5 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveForm}
-                                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-all flex items-center gap-2"
-                            >
-                                <Save size={18} />
-                                {editingFormId ? 'Update Form' : 'Save Form'}
-                            </button>
+                        <div className="p-4 border-t border-slate-100 bg-white rounded-b-2xl flex justify-between items-center z-10">
+                            <span className="text-xs text-slate-400">
+                                {sections.length} section{sections.length > 1 ? 's' : ''} · {sections.reduce((sum, s) => sum + s.questions.length, 0)} questions
+                            </span>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleCloseModal}
+                                    className="px-5 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveForm}
+                                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-all flex items-center gap-2"
+                                >
+                                    <Save size={18} />
+                                    {editingFormId ? 'Update Form' : 'Save Form'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -280,7 +280,7 @@ const CourseDetail = () => {
 
             {/* Key Validation Modal */}
             {showKeyModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-fade-in">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-6 animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
                         <div className="p-6 text-center">
                             <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
