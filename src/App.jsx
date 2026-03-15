@@ -10,6 +10,7 @@ import FormBuilder from './pages/admin/FormBuilder';
 import ResponseViewer from './pages/admin/ResponseViewer';
 import ResponseTable from './pages/admin/ResponseTable';
 import CalendarPage from './pages/admin/CalendarPage';
+import UserManagement from './pages/admin/UserManagement';
 import Login from './pages/admin/Login';
 
 import LiffLayout from './layouts/LiffLayout';
@@ -23,7 +24,6 @@ import { PERMISSIONS } from './lib/permissions';
 
 import ErrorBoundary from './components/ErrorBoundary';
 
-const TraineeList = () => <div className="p-4">Trainee List (Coming Soon)</div>;
 
 const RootRedirect = () => {
   const location = useLocation();
@@ -97,10 +97,10 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* Trainee List - Admin Only */}
-              <Route path="trainees" element={
-                <ProtectedRoute allowedRoles={PERMISSIONS.MANAGE_TRAINEES}>
-                  <TraineeList />
+              {/* User Management - Admin Only */}
+              <Route path="users" element={
+                <ProtectedRoute allowedRoles={PERMISSIONS.MANAGE_USERS}>
+                  <UserManagement />
                 </ProtectedRoute>
               } />
 

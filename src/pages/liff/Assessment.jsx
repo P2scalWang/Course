@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, addDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { liffService } from '../../services/liffService';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
@@ -12,6 +12,7 @@ import Lock from 'lucide-react/dist/esm/icons/lock';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Edit3 from 'lucide-react/dist/esm/icons/edit-3';
 import clsx from 'clsx';
 import SystemModal from '../../components/SystemModal';
 
@@ -40,6 +41,8 @@ const LiffAssessment = () => {
     const [selectedWeek, setSelectedWeek] = useState(null);
     const [availableWeeks, setAvailableWeeks] = useState([]);
     const [submittedWeeks, setSubmittedWeeks] = useState([]);
+    const [submittedResponseDocs, setSubmittedResponseDocs] = useState({}); // week -> { docId, responses }
+    const [isEditMode, setIsEditMode] = useState(false); // true when editing a submitted response
 
     // Section navigation
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -110,6 +113,14 @@ const LiffAssessment = () => {
                 const submitted = responsesSnap.docs.map(d => d.data().week);
                 setSubmittedWeeks(submitted);
 
+                // Store doc IDs and responses for editing
+                const responseDocsMap = {};
+                responsesSnap.docs.forEach(d => {
+                    const data = d.data();
+                    responseDocsMap[data.week] = { docId: d.id, responses: data.responses || [] };
+                });
+                setSubmittedResponseDocs(responseDocsMap);
+
                 const today = new Date().toISOString().split('T')[0];
                 const available = WEEKS.filter(week => {
                     const formId = courseData.weekForms?.[week];
@@ -150,10 +161,24 @@ const LiffAssessment = () => {
     };
 
     const handleWeekSelect = async (week) => {
-        if (submittedWeeks.includes(week)) return;
         setLoading(true);
         await loadFormForWeek(course, week);
         setSelectedWeek(week);
+
+        // If already submitted, pre-populate answers for viewing/editing
+        if (submittedWeeks.includes(week) && submittedResponseDocs[week]) {
+            const existingResponses = submittedResponseDocs[week].responses;
+            const answersMap = {};
+            existingResponses.forEach((answer, idx) => {
+                if (answer !== null && answer !== undefined && answer !== '') {
+                    answersMap[idx] = answer;
+                }
+            });
+            setAnswers(answersMap);
+            setIsEditMode(true);
+        } else {
+            setIsEditMode(false);
+        }
         setLoading(false);
     };
 
@@ -188,26 +213,45 @@ const LiffAssessment = () => {
                 const answer = answers[index];
                 return Array.isArray(answer) ? answer.join(', ') : (answer || '');
             });
-            await addDoc(collection(db, 'responses'), {
-                courseId: courseId,
-                formTemplateId: formTemplate.id,
-                userId: userId,
-                week: selectedWeek,
-                responses: responsesArray,
-                submittedAt: new Date()
-            });
+
+            if (isEditMode && submittedResponseDocs[selectedWeek]?.docId) {
+                // Update existing response
+                await updateDoc(doc(db, 'responses', submittedResponseDocs[selectedWeek].docId), {
+                    responses: responsesArray,
+                    updatedAt: new Date()
+                });
+            } else {
+                // Create new response
+                await addDoc(collection(db, 'responses'), {
+                    courseId: courseId,
+                    formTemplateId: formTemplate.id,
+                    userId: userId,
+                    week: selectedWeek,
+                    responses: responsesArray,
+                    submittedAt: new Date()
+                });
+            }
+
             setModalConfig({
                 isOpen: true,
-                title: 'บันทึกข้อมูลสำเร็จ!',
-                message: 'ขอบคุณสำหรับการประเมิน ความคิดเห็นของคุณมีค่าสำหรับเรา',
+                title: isEditMode ? 'แก้ไขข้อมูลสำเร็จ!' : 'บันทึกข้อมูลสำเร็จ!',
+                message: isEditMode ? 'แก้ไขคำตอบของคุณเรียบร้อยแล้ว' : 'ขอบคุณสำหรับการประเมิน ความคิดเห็นของคุณมีค่าสำหรับเรา',
                 type: 'success',
                 onConfirm: () => {
                     setModalConfig(prev => ({ ...prev, isOpen: false }));
-                    setSubmittedWeeks([...submittedWeeks, selectedWeek]);
+                    if (!isEditMode) {
+                        setSubmittedWeeks([...submittedWeeks, selectedWeek]);
+                    }
+                    // Update stored response data
+                    setSubmittedResponseDocs(prev => ({
+                        ...prev,
+                        [selectedWeek]: { ...prev[selectedWeek], responses: responsesArray }
+                    }));
                     setSelectedWeek(null);
                     setFormTemplate(null);
                     setAnswers({});
                     setCurrentSectionIndex(0);
+                    setIsEditMode(false);
                 }
             });
         } catch (error) {
@@ -265,11 +309,11 @@ const LiffAssessment = () => {
                                     )}></div>
 
                                     <div
-                                        onClick={() => isAvailable && !isSubmitted && handleWeekSelect(week)}
+                                        onClick={() => isAvailable && handleWeekSelect(week)}
                                         className={clsx(
                                             "rounded-2xl p-5 border-2 transition-all relative overflow-hidden group",
                                             isSubmitted
-                                                ? "bg-emerald-50/50 border-emerald-100 cursor-default"
+                                                ? "bg-emerald-50/50 border-emerald-100 cursor-pointer hover:border-emerald-300 active:scale-[0.98]"
                                                 : isAvailable
                                                     ? "bg-white border-indigo-100 shadow-lg shadow-indigo-100/50 hover:border-indigo-300 cursor-pointer active:scale-[0.98]"
                                                     : "bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed"
@@ -309,7 +353,11 @@ const LiffAssessment = () => {
                                             {weekDate ? new Date(weekDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'ยังไม่กำหนดวัน'}
                                         </div>
 
-                                        {isAvailable && !isSubmitted && (
+                                        {isSubmitted ? (
+                                            <div className="mt-4 flex items-center text-emerald-600 text-xs font-bold gap-1 group-hover:gap-2 transition-all">
+                                                ดูคำตอบ / แก้ไข <ChevronRight size={14} />
+                                            </div>
+                                        ) : isAvailable && (
                                             <div className="mt-4 flex items-center text-indigo-600 text-xs font-bold gap-1 group-hover:gap-2 transition-all">
                                                 เริ่มทำแบบประเมิน <ChevronRight size={14} />
                                             </div>
@@ -406,6 +454,19 @@ const LiffAssessment = () => {
                     <div className="mb-8">
                         <h1 className="text-2xl font-bold text-slate-800 mb-2">{formTemplate.name}</h1>
                         {!hasSections && <p className="text-slate-500">ตอบคำถาม {allQuestions.length} ข้อ</p>}
+                    </div>
+                )}
+
+                {/* Edit Mode Banner */}
+                {isEditMode && isFirstSection && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
+                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Edit3 size={16} className="text-amber-600" />
+                        </div>
+                        <div>
+                            <p className="font-bold text-amber-800 text-sm">กำลังแก้ไขคำตอบ</p>
+                            <p className="text-xs text-amber-600">คุณสามารถแก้ไขคำตอบแล้วกดบันทึกใหม่ได้</p>
+                        </div>
                     </div>
                 )}
 
@@ -571,7 +632,7 @@ const LiffAssessment = () => {
                                             : "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
                                     )}
                                 >
-                                    {submitting ? 'กำลังส่งคำตอบ...' : 'ส่งแบบประเมิน'}
+                                    {submitting ? 'กำลังบันทึก...' : (isEditMode ? 'บันทึกการแก้ไข' : 'ส่งแบบประเมิน')}
                                     {!submitting && <Send size={18} />}
                                 </button>
                             )}
@@ -589,7 +650,7 @@ const LiffAssessment = () => {
                                 : "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
                         )}
                     >
-                        {submitting ? 'กำลังส่งคำตอบ...' : 'ส่งแบบประเมิน'}
+                        {submitting ? 'กำลังบันทึก...' : (isEditMode ? 'บันทึกการแก้ไข' : 'ส่งแบบประเมิน')}
                         {!submitting && <Send size={20} />}
                     </button>
                 )}

@@ -2,9 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
     signInWithEmailAndPassword,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { DEFAULT_ROLE } from '../lib/permissions';
 
@@ -16,6 +19,23 @@ export const useAuth = () => {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
+};
+
+// Secondary Firebase app for creating users without logging out the admin
+let secondaryApp = null;
+let secondaryAuth = null;
+
+const getSecondaryAuth = () => {
+    if (!secondaryAuth) {
+        const config = {
+            apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+            authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+            projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        };
+        secondaryApp = initializeApp(config, 'SecondaryApp');
+        secondaryAuth = getAuth(secondaryApp);
+    }
+    return secondaryAuth;
 };
 
 export const AuthProvider = ({ children }) => {
@@ -32,13 +52,37 @@ export const AuthProvider = ({ children }) => {
         return signOut(auth);
     };
 
+    // Create a new user without logging out the current admin
+    const createUser = async (email, password, role, companyId) => {
+        const secAuth = getSecondaryAuth();
+        try {
+            const userCredential = await createUserWithEmailAndPassword(secAuth, email, password);
+            const newUid = userCredential.user.uid;
+
+            // Save role document
+            await setDoc(doc(db, 'role', newUid), {
+                role: role,
+                companyId: companyId || null,
+                email: email,
+                createdAt: serverTimestamp(),
+                createdBy: auth.currentUser?.uid || 'unknown'
+            });
+
+            // Sign out from secondary auth immediately
+            await signOut(secAuth);
+
+            return newUid;
+        } catch (error) {
+            // Ensure secondary auth is cleaned up
+            try { await signOut(secAuth); } catch (_) {}
+            throw error;
+        }
+    };
+
     // Listen for auth state changes
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Determine if this is an initial load or a re-auth/login
-                // If loading is already false, it means we are re-authenticating or context updating
-                // We set loading true to block UI while we fetch role
                 setLoading(true);
 
                 // Fetch user role from Firestore
@@ -47,16 +91,19 @@ export const AuthProvider = ({ children }) => {
                     const roleDoc = await getDoc(roleDocRef);
 
                     let userRole = DEFAULT_ROLE;
+                    let userCompanyId = null;
+
                     if (roleDoc.exists()) {
-                        userRole = roleDoc.data().role || DEFAULT_ROLE;
+                        const data = roleDoc.data();
+                        userRole = data.role || DEFAULT_ROLE;
+                        userCompanyId = data.companyId || null;
                     }
 
-                    console.log(`User ${user.email} role: ${userRole}`); // Debug log
-                    setCurrentUser({ ...user, role: userRole });
+                    console.log(`User ${user.email} role: ${userRole}, company: ${userCompanyId}`);
+                    setCurrentUser({ ...user, role: userRole, companyId: userCompanyId });
                 } catch (error) {
                     console.error("Error fetching user role:", error);
-                    // Fallback to default role on error
-                    setCurrentUser({ ...user, role: DEFAULT_ROLE });
+                    setCurrentUser({ ...user, role: DEFAULT_ROLE, companyId: null });
                 } finally {
                     setLoading(false);
                 }
@@ -73,6 +120,7 @@ export const AuthProvider = ({ children }) => {
         currentUser,
         login,
         logout,
+        createUser,
         loading
     };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import Search from 'lucide-react/dist/esm/icons/search';
@@ -25,6 +26,10 @@ import clsx from 'clsx';
 import ExcelJS from 'exceljs';
 
 const ResponseViewer = () => {
+    const { currentUser } = useAuth();
+    const isViewer = currentUser?.role === 'viewer';
+    const viewerCompanyId = currentUser?.companyId;
+
     const [searchParams, setSearchParams] = useSearchParams();
     const [responses, setResponses] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -215,8 +220,12 @@ const ResponseViewer = () => {
 
     // --- Derived Data ---
 
-    // Overview: Courses with count
-    const coursesWithResponses = courses.map(course => {
+    // Overview: Courses with count (scoped by company for viewer)
+    const visibleCourses = isViewer && viewerCompanyId
+        ? courses.filter(c => c.companyId === viewerCompanyId)
+        : courses;
+
+    const coursesWithResponses = visibleCourses.map(course => {
         const count = responses.filter(r => r.courseId === course.id).length;
         return { ...course, responseCount: count };
     }).sort((a, b) => b.responseCount - a.responseCount);

@@ -69,10 +69,10 @@ const AdminLayout = () => {
             allowedRoles: PERMISSIONS.VIEW_RESPONSES
         },
         {
-            path: '/admin/trainees',
-            label: 'Trainee List',
+            path: '/admin/users',
+            label: 'User Management',
             icon: Users,
-            allowedRoles: PERMISSIONS.MANAGE_TRAINEES
+            allowedRoles: PERMISSIONS.MANAGE_USERS
         },
     ];
 
@@ -154,11 +154,11 @@ const AdminLayout = () => {
                             {/* Show Role Badge */}
                             <div className="flex items-center gap-2">
                                 <p className="text-sm font-semibold text-slate-700 truncate">
-                                    {currentUser?.role === ROLES.ADMIN ? 'Admin' : 'Staff'}
+                                    {currentUser?.role === ROLES.ADMIN ? 'Admin' : currentUser?.role === 'viewer' ? 'Viewer' : 'Staff'}
                                 </p>
                                 <span className={clsx(
                                     "text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider",
-                                    currentUser?.role === ROLES.ADMIN ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
+                                    currentUser?.role === ROLES.ADMIN ? "bg-indigo-100 text-indigo-700" : currentUser?.role === 'viewer' ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
                                 )}>
                                     {currentUser?.role}
                                 </span>

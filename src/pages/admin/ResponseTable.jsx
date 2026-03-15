@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import Table from 'lucide-react/dist/esm/icons/table';
 import X from 'lucide-react/dist/esm/icons/x';
@@ -12,6 +13,10 @@ import Eye from 'lucide-react/dist/esm/icons/eye';
 import clsx from 'clsx';
 
 const ResponseTable = () => {
+    const { currentUser } = useAuth();
+    const isViewer = currentUser?.role === 'viewer';
+    const viewerCompanyId = currentUser?.companyId;
+
     const [responses, setResponses] = useState([]);
     const [courses, setCourses] = useState([]);
     const [formTemplates, setFormTemplates] = useState({});
@@ -163,10 +168,10 @@ const ResponseTable = () => {
                         </button>
                         {courseDropdownOpen && (
                             <div className="absolute z-20 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                                {courses.length === 0 ? (
+                                {(isViewer && viewerCompanyId ? courses.filter(c => c.companyId === viewerCompanyId) : courses).length === 0 ? (
                                     <div className="p-4 text-center text-slate-400 text-sm">No courses found</div>
                                 ) : (
-                                    courses.map(course => (
+                                    (isViewer && viewerCompanyId ? courses.filter(c => c.companyId === viewerCompanyId) : courses).map(course => (
                                         <button
                                             key={course.id}
                                             onClick={() => {
