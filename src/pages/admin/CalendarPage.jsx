@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 // Direct imports to avoid barrel file overhead (bundle-barrel-imports)
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
@@ -20,6 +21,10 @@ const WEEK_COLORS = {
 };
 
 const CalendarPage = () => {
+    const { currentUser } = useAuth();
+    const isViewer = currentUser?.role === 'viewer';
+    const viewerCompanyId = currentUser?.companyId;
+
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -43,7 +48,10 @@ const CalendarPage = () => {
     // Memoize events to avoid recalculating on every render (rerender-memo)
     const events = useMemo(() => {
         const result = [];
-        courses.forEach(course => {
+        const filteredCourses = isViewer && viewerCompanyId
+            ? courses.filter(c => c.companyId === viewerCompanyId)
+            : courses;
+        filteredCourses.forEach(course => {
             if (course.weekDates) {
                 Object.entries(course.weekDates).forEach(([week, dateStr]) => {
                     if (dateStr) {
@@ -60,7 +68,7 @@ const CalendarPage = () => {
             }
         });
         return result;
-    }, [courses]);
+    }, [courses, isViewer, viewerCompanyId]);
 
     // Build Map index for O(1) lookup by date (js-index-maps)
     const eventsByDate = useMemo(() => {
