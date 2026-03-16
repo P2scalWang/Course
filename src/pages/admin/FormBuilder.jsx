@@ -40,6 +40,7 @@ const FormBuilder = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
     const [formName, setFormName] = useState('');
+    const [formFolderId, setFormFolderId] = useState(null);
     const [sections, setSections] = useState([{ title: 'Section 1', questions: [], collapsed: false }]);
     const [editingFormId, setEditingFormId] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -260,6 +261,7 @@ const FormBuilder = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setFormName('');
+        setFormFolderId(null);
         setSections([{ title: 'Section 1', questions: [], collapsed: false }]);
         setEditingFormId(null);
     };
@@ -289,7 +291,7 @@ const FormBuilder = () => {
                 name: formName,
                 sections: sectionsData,
                 questions: flatQuestions,
-                folderId: selectedFolderId || null
+                folderId: formFolderId
             };
 
             if (editingFormId) {
@@ -311,6 +313,7 @@ const FormBuilder = () => {
     const handleEditForm = (form) => {
         setEditingFormId(form.id);
         setFormName(form.name);
+        setFormFolderId(form.folderId || null);
         // If form has sections, use them; otherwise wrap all questions in one section
         if (form.sections && form.sections.length > 0) {
             setSections(form.sections.map(s => ({ ...s, collapsed: false })));
@@ -364,7 +367,10 @@ const FormBuilder = () => {
                         New Folder
                     </button>
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => {
+                            setFormFolderId(selectedFolderId === 'uncategorized' ? null : selectedFolderId);
+                            setIsModalOpen(true);
+                        }}
                         className="btn-primary"
                     >
                         <Plus size={20} />
@@ -503,7 +509,10 @@ const FormBuilder = () => {
                                 <p className="font-semibold text-lg text-slate-600">No forms in this folder</p>
                                 <p className="text-sm mb-6">Create a form to get started.</p>
                                 <button
-                                    onClick={() => setIsModalOpen(true)}
+                                    onClick={() => {
+                                        setFormFolderId(selectedFolderId === 'uncategorized' ? null : selectedFolderId);
+                                        setIsModalOpen(true);
+                                    }}
                                     className="btn-secondary"
                                 >
                                     Create Form
@@ -664,16 +673,31 @@ const FormBuilder = () => {
 
                         {/* Body - Scrollable */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
-                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Form Title</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Workshop Feedback Survey"
-                                    className="input-primary text-lg font-semibold"
-                                    value={formName}
-                                    onChange={e => setFormName(e.target.value)}
-                                    autoFocus
-                                />
+                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Form Title</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Workshop Feedback Survey"
+                                        className="input-primary text-lg font-semibold"
+                                        value={formName}
+                                        onChange={e => setFormName(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Folder</label>
+                                    <select
+                                        className="w-full text-base p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-medium transition-all"
+                                        value={formFolderId || 'uncategorized'}
+                                        onChange={e => setFormFolderId(e.target.value === 'uncategorized' ? null : e.target.value)}
+                                    >
+                                        <option value="uncategorized">📁 Uncategorized Form</option>
+                                        {folders.map(f => (
+                                            <option key={f.id} value={f.id}>📁 {f.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Section List */}
