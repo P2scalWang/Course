@@ -45,6 +45,10 @@ const FormBuilder = () => {
     const [editingFormId, setEditingFormId] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Drag and Drop state
+    const [draggedFormId, setDraggedFormId] = useState(null);
+    const [dragOverFolderId, setDragOverFolderId] = useState(null);
+
     // Folder modal state
     const [folderName, setFolderName] = useState('');
     const [folderColor, setFolderColor] = useState(FOLDER_COLORS[0]);
@@ -138,6 +142,45 @@ const FormBuilder = () => {
         setFolderName('');
         setFolderColor(FOLDER_COLORS[0]);
         setEditingFolderId(null);
+    };
+
+    // --- Drag and Drop Functions ---
+    const handleDragStart = (e, formId) => {
+        setDraggedFormId(formId);
+        e.dataTransfer.setData('text/plain', formId);
+    };
+
+    const handleDragOver = (e, folderId) => {
+        e.preventDefault();
+        setDragOverFolderId(folderId);
+    };
+
+    const handleDragLeave = () => {
+        setDragOverFolderId(null);
+    };
+
+    const handleDrop = async (e, targetFolderId) => {
+        e.preventDefault();
+        setDragOverFolderId(null);
+        if (!draggedFormId) return;
+
+        const form = forms.find(f => f.id === draggedFormId);
+        if (!form) return;
+
+        const newFolderId = targetFolderId === 'uncategorized' ? null : targetFolderId;
+        if (form.folderId === newFolderId) return; // No change
+
+        try {
+            // Optimistic update
+            setForms(prev => prev.map(f => f.id === draggedFormId ? { ...f, folderId: newFolderId } : f));
+            await updateDoc(doc(db, 'formTemplates', draggedFormId), { folderId: newFolderId });
+        } catch (error) {
+            console.error('Error auto-moving form:', error);
+            alert('Failed to move form');
+            fetchData(); // Revert on error
+        } finally {
+            setDraggedFormId(null);
+        }
     };
 
     // --- Section Functions ---
@@ -414,11 +457,15 @@ const FormBuilder = () => {
                                 {uncategorizedCount > 0 && (
                                     <button
                                         onClick={() => setSelectedFolderId('uncategorized')}
+                                        onDragOver={(e) => handleDragOver(e, 'uncategorized')}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, 'uncategorized')}
                                         className={clsx(
                                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors group",
                                             selectedFolderId === 'uncategorized'
                                                 ? "bg-slate-200 text-slate-700"
-                                                : "hover:bg-slate-50 text-slate-600"
+                                                : "hover:bg-slate-50 text-slate-600",
+                                            dragOverFolderId === 'uncategorized' && "ring-2 ring-indigo-500 bg-indigo-50"
                                         )}
                                     >
                                         <FileText size={18} className="text-slate-400" />
@@ -438,9 +485,13 @@ const FormBuilder = () => {
                                                 "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group cursor-pointer",
                                                 selectedFolderId === folder.id
                                                     ? "bg-indigo-50 text-indigo-700"
-                                                    : "hover:bg-slate-50 text-slate-600"
+                                                    : "hover:bg-slate-50 text-slate-600",
+                                                dragOverFolderId === folder.id && "ring-2 ring-indigo-500 bg-indigo-50"
                                             )}
                                             onClick={() => setSelectedFolderId(folder.id)}
+                                            onDragOver={(e) => handleDragOver(e, folder.id)}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDrop(e, folder.id)}
                                         >
                                             <Folder
                                                 size={18}
@@ -521,7 +572,16 @@ const FormBuilder = () => {
                         ) : (
                             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                                 {(selectedFolderId === 'uncategorized' ? forms.filter(f => !f.folderId) : filteredForms).map(form => (
-                                    <div key={form.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow group relative overflow-hidden">
+                                    <div 
+                                        key={form.id} 
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, form.id)}
+                                        onDragEnd={() => setDraggedFormId(null)}
+                                        className={clsx(
+                                            "bg-white rounded-2xl shadow-sm border p-5 hover:shadow-md transition-all group relative overflow-hidden cursor-grab active:cursor-grabbing",
+                                            draggedFormId === form.id ? "opacity-50 border-indigo-300 scale-95" : "border-slate-200"
+                                        )}
+                                    >
                                         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-l-2xl"></div>
                                         <div className="flex justify-between items-start mb-4 pl-2">
                                             <div>
