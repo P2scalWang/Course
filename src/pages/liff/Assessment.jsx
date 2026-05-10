@@ -13,10 +13,10 @@ import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
 import Edit3 from 'lucide-react/dist/esm/icons/edit-3';
+import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import clsx from 'clsx';
 import SystemModal from '../../components/SystemModal';
-
-const WEEKS = ['pre', 0, 2, 4, 6, 8];
+import { WEEKS, getWeekLabel, getWeekShortLabel } from '../../lib/assessmentWeeks';
 
 const LiffAssessment = () => {
     const { courseId } = useParams();
@@ -43,6 +43,7 @@ const LiffAssessment = () => {
     const [submittedWeeks, setSubmittedWeeks] = useState([]);
     const [submittedResponseDocs, setSubmittedResponseDocs] = useState({}); // week -> { docId, responses }
     const [isEditMode, setIsEditMode] = useState(false); // true when editing a submitted response
+    const [submittedView, setSubmittedView] = useState('answers'); // answers | feedback
 
     // Section navigation
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -117,7 +118,11 @@ const LiffAssessment = () => {
                 const responseDocsMap = {};
                 responsesSnap.docs.forEach(d => {
                     const data = d.data();
-                    responseDocsMap[data.week] = { docId: d.id, responses: data.responses || [] };
+                    responseDocsMap[data.week] = {
+                        docId: d.id,
+                        responses: data.responses || [],
+                        feedback: data.feedback || null
+                    };
                 });
                 setSubmittedResponseDocs(responseDocsMap);
 
@@ -176,8 +181,10 @@ const LiffAssessment = () => {
             });
             setAnswers(answersMap);
             setIsEditMode(true);
+            setSubmittedView('answers');
         } else {
             setIsEditMode(false);
+            setSubmittedView('answers');
         }
         setLoading(false);
     };
@@ -252,6 +259,7 @@ const LiffAssessment = () => {
                     setAnswers({});
                     setCurrentSectionIndex(0);
                     setIsEditMode(false);
+                    setSubmittedView('answers');
                 }
             });
         } catch (error) {
@@ -324,7 +332,7 @@ const LiffAssessment = () => {
                                                 "font-black text-3xl",
                                                 isSubmitted ? "text-emerald-200" : isAvailable ? "text-indigo-100 group-hover:text-indigo-200" : "text-slate-200"
                                             )}>
-                                                {week === 'pre' ? 'Pre' : `W${week}`}
+                                                {getWeekShortLabel(course, week)}
                                             </span>
                                             {isSubmitted ? (
                                                 <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
@@ -345,7 +353,7 @@ const LiffAssessment = () => {
                                             "font-bold text-lg mb-1",
                                             isSubmitted ? "text-emerald-800" : isAvailable ? "text-slate-800" : "text-slate-400"
                                         )}>
-                                            {week === 'pre' ? 'แบบประเมิน Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`}
+                                            {getWeekLabel(course, week)}
                                         </h3>
 
                                         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -379,6 +387,7 @@ const LiffAssessment = () => {
     const isFirstSection = currentSectionIndex === 0;
     const currentSection = hasSections ? formTemplate.sections[currentSectionIndex] : null;
     const globalOffset = getGlobalIndexOffset(currentSectionIndex);
+    const selectedFeedback = selectedWeek !== null ? submittedResponseDocs[selectedWeek]?.feedback : null;
 
     return (
         <div className="min-h-screen bg-white">
@@ -401,7 +410,7 @@ const LiffAssessment = () => {
                     </button>
                     <div className="flex-1 text-right">
                         <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">
-                            {selectedWeek === 'pre' ? 'Pre-training' : selectedWeek === 0 ? 'Action Commitment' : `Week ${selectedWeek} Follow up`}
+                            {getWeekLabel(course, selectedWeek)}
                         </span>
                     </div>
                 </div>
@@ -470,6 +479,67 @@ const LiffAssessment = () => {
                     </div>
                 )}
 
+                {isEditMode && isFirstSection && (
+                    <div className="mb-6 grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                        <button
+                            type="button"
+                            onClick={() => setSubmittedView('answers')}
+                            className={clsx(
+                                "py-3 rounded-xl text-sm font-bold transition-all",
+                                submittedView === 'answers' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"
+                            )}
+                        >
+                            Answers
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSubmittedView('feedback')}
+                            className={clsx(
+                                "py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2",
+                                submittedView === 'feedback' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"
+                            )}
+                        >
+                            <MessageSquare size={16} />
+                            Feedback
+                        </button>
+                    </div>
+                )}
+
+                {isEditMode && submittedView === 'feedback' ? (
+                    <div className="bg-white rounded-3xl border border-indigo-100 shadow-sm overflow-hidden">
+                        <div className="p-5 bg-indigo-50 border-b border-indigo-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-white text-indigo-600 flex items-center justify-center shadow-sm">
+                                <MessageSquare size={20} />
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-slate-800">Feedback</h2>
+                                <p className="text-xs text-slate-500">{getWeekLabel(course, selectedWeek)}</p>
+                            </div>
+                        </div>
+                        <div className="p-5">
+                            {selectedFeedback?.message ? (
+                                <div className="space-y-3">
+                                    <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
+                                        {selectedFeedback.message}
+                                    </p>
+                                    {selectedFeedback.updatedByEmail && (
+                                        <p className="text-xs text-slate-400 border-t border-slate-100 pt-3">
+                                            From {selectedFeedback.updatedByEmail}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-10">
+                                    <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center mx-auto mb-3">
+                                        <MessageSquare size={26} />
+                                    </div>
+                                    <p className="font-bold text-slate-700">No feedback yet</p>
+                                    <p className="text-sm text-slate-400 mt-1">Feedback for this assessment will appear here.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="space-y-8">
                     {currentSectionQuestions.map((q, localIndex) => {
                         const globalIndex = globalOffset + localIndex;
@@ -593,9 +663,11 @@ const LiffAssessment = () => {
                         );
                     })}
                 </form>
+                )}
             </div>
 
             {/* Sticky Bottom Navigation */}
+            {submittedView !== 'feedback' && (
             <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-50 pb-safe z-40">
                 {hasSections && totalSections > 1 ? (
                     <div className="space-y-3">
@@ -655,6 +727,7 @@ const LiffAssessment = () => {
                     </button>
                 )}
             </div>
+            )}
             {/* System Modal */}
             <SystemModal
                 isOpen={modalConfig.isOpen}

@@ -11,6 +11,7 @@ import Search from 'lucide-react/dist/esm/icons/search';
 import Download from 'lucide-react/dist/esm/icons/download';
 import Eye from 'lucide-react/dist/esm/icons/eye';
 import clsx from 'clsx';
+import { getWeekLabel } from '../../lib/assessmentWeeks';
 
 const ResponseTable = () => {
     const { currentUser } = useAuth();
@@ -87,6 +88,7 @@ const ResponseTable = () => {
     // Helpers
     const getCourseName = (courseId) => courses.find(c => c.id === courseId)?.title || 'Unknown Course';
     const getSelectedCourse = (courseId) => courses.find(c => c.id === courseId);
+    const getSelectedWeekLabel = (week) => getWeekLabel(getSelectedCourse(selectedCourseId), week);
 
     // Get questions for a specific week of a course
     const getQuestionsForWeek = (courseId, week) => {
@@ -206,7 +208,7 @@ const ResponseTable = () => {
                                     : "bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed"
                             )}
                         >
-                            <span>{selectedWeek !== '' ? (selectedWeek === 'pre' ? 'Pre-training' : parseInt(selectedWeek) === 0 ? 'Action Commitment' : `Week ${selectedWeek} Follow up`) : 'Choose week...'}</span>
+                            <span>{selectedWeek !== '' ? getSelectedWeekLabel(selectedWeek === 'pre' ? 'pre' : parseInt(selectedWeek)) : 'Choose week...'}</span>
                             <ChevronDown size={16} className={clsx("transition-transform", weekDropdownOpen && "rotate-180")} />
                         </button>
                         {weekDropdownOpen && selectedCourseId && (
@@ -226,7 +228,7 @@ const ResponseTable = () => {
                                                 selectedWeek === week.toString() && "bg-indigo-50 text-indigo-700 font-medium"
                                             )}
                                         >
-                                            {week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`}
+                                            {getSelectedWeekLabel(week)}
                                         </button>
                                     ))
                                 )}

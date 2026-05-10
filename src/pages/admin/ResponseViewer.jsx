@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
@@ -21,9 +21,11 @@ import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import Circle from 'lucide-react/dist/esm/icons/circle';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import FileSpreadsheet from 'lucide-react/dist/esm/icons/file-spreadsheet';
+import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import clsx from 'clsx';
 // Removed unused 'xlsx' import (bundle-heavy-dependencies)
 import ExcelJS from 'exceljs';
+import { getWeekLabel, getWeekShortLabel } from '../../lib/assessmentWeeks';
 
 const ResponseViewer = () => {
     const { currentUser } = useAuth();
@@ -52,6 +54,8 @@ const ResponseViewer = () => {
     // Modal State
     const [selectedResponse, setSelectedResponse] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [feedbackDraft, setFeedbackDraft] = useState('');
+    const [isSavingFeedback, setIsSavingFeedback] = useState(false);
 
     useEffect(() => {
         loadAllData();
@@ -185,6 +189,8 @@ const ResponseViewer = () => {
     // --- Helpers ---
     const getCourseName = (courseId) => courses.find(c => c.id === courseId)?.title || 'Unknown Course';
     const getSelectedCourse = (courseId) => courses.find(c => c.id === courseId);
+    const getCourseWeekLabel = (week) => getWeekLabel(getSelectedCourse(selectedCourseId), week);
+    const getCourseWeekShortLabel = (week) => getWeekShortLabel(getSelectedCourse(selectedCourseId), week);
     const getFormName = (formTemplateId) => formTemplates[formTemplateId]?.name || 'Unknown Form';
     const getQuestions = (formTemplateId) => formTemplates[formTemplateId]?.questions || [];
 
@@ -392,7 +398,7 @@ const ResponseViewer = () => {
             { header: 'Position', key: 'position', width: 15 }
         ];
         allWeeks.forEach(week => {
-            summaryColumns.push({ header: week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`, key: `week${week}`, width: 12 });
+            summaryColumns.push({ header: getCourseWeekLabel(week), key: `week${week}`, width: 12 });
         });
         summaryColumns.push({ header: 'Completion %', key: 'completion', width: 12 });
 
@@ -406,7 +412,7 @@ const ResponseViewer = () => {
             const weekResponses = courseResponses.filter(r => r.week === week);
 
             if (weekResponses.length > 0) {
-                const weekSheet = workbook.addWorksheet(week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`);
+                const weekSheet = workbook.addWorksheet(getCourseWeekLabel(week));
                 const weekSections = getSectionsForWeek(selectedCourseId, week);
 
                 // Build column headers with section prefix if sections exist
@@ -475,7 +481,7 @@ const ResponseViewer = () => {
 
     const exportWeekResponses = async () => {
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet(`Week ${selectedWeek}`);
+        const worksheet = workbook.addWorksheet(getCourseWeekLabel(selectedWeek));
 
         const weekQuestions = getQuestionsForWeek(selectedCourseId, selectedWeek);
         const weekSections = getSectionsForWeek(selectedCourseId, selectedWeek);
@@ -633,7 +639,7 @@ const ResponseViewer = () => {
 
             // Week header row
             addStyledRow({
-                week: response.week === 'pre' ? 'Pre-training' : response.week === 0 ? 'Action Commitment' : `Week ${response.week} Follow up`,
+                week: getCourseWeekLabel(response.week),
                 no: '',
                 question: 'Submitted At:',
                 answer: response.submittedAt?.toLocaleString() || '-'
@@ -702,7 +708,34 @@ const ResponseViewer = () => {
 
     const handleViewDetail = (response) => {
         setSelectedResponse(response);
+        setFeedbackDraft(response.feedback?.message || '');
         setIsModalOpen(true);
+    };
+
+    const handleSaveFeedback = async () => {
+        if (!selectedResponse) return;
+
+        setIsSavingFeedback(true);
+        try {
+            const feedback = {
+                message: feedbackDraft.trim(),
+                updatedAt: new Date(),
+                updatedBy: currentUser?.uid || null,
+                updatedByEmail: currentUser?.email || ''
+            };
+
+            await updateDoc(doc(db, 'responses', selectedResponse.id), { feedback });
+
+            setResponses(prev => prev.map(response =>
+                response.id === selectedResponse.id ? { ...response, feedback } : response
+            ));
+            setSelectedResponse(prev => prev ? { ...prev, feedback } : prev);
+        } catch (error) {
+            console.error('Error saving feedback:', error);
+            alert('Failed to save feedback');
+        } finally {
+            setIsSavingFeedback(false);
+        }
     };
 
     if (loading) return <div className="p-12 text-center text-slate-400">Loading data...</div>;
@@ -821,12 +854,12 @@ const ResponseViewer = () => {
                                         <Folder size={24} />
                                     </div>
                                     <span className="text-xs font-bold text-slate-400 px-2 py-1 bg-slate-50 rounded-lg group-hover:bg-white group-hover:text-blue-500">
-                                        Week {week}
+                                        {getCourseWeekShortLabel(week)}
                                     </span>
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 text-lg">
-                                        {week === 'pre' ? 'Pre-training' : week === 0 ? 'Action Commitment' : `Week ${week} Follow up`}
+                                        {getCourseWeekLabel(week)}
                                     </h3>
                                     <p className="text-sm text-slate-500 mt-1">{count} assessments submitted</p>
                                 </div>
@@ -920,7 +953,7 @@ const ResponseViewer = () => {
                                     <th className="p-4 w-32">Department</th>
                                     <th className="p-4 w-32">Position</th>
                                     {allWeeks.map(week => (
-                                        <th key={week} className="p-4 text-center w-24 border-l border-slate-100">{week === 'pre' ? 'Pre' : week === 0 ? 'AC' : `W${week} FU`}</th>
+                                        <th key={week} className="p-4 text-center w-24 border-l border-slate-100">{getCourseWeekShortLabel(week)}</th>
                                     ))}
                                     <th className="p-4 text-center w-32 border-l border-slate-100">Completion</th>
                                     <th className="p-4 text-center w-32 border-l border-slate-100">Action</th>
@@ -1131,9 +1164,9 @@ const ResponseViewer = () => {
                     </button>
                     <div>
                         <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            {getCourseName(selectedCourseId)} / Week {selectedWeek}
+                            {getCourseName(selectedCourseId)} / {getCourseWeekLabel(selectedWeek)}
                         </h1>
-                        <p className="text-slate-500 text-sm">Viewing {filteredResponses.length} responses for Week {selectedWeek}</p>
+                        <p className="text-slate-500 text-sm">Viewing {filteredResponses.length} responses for {getCourseWeekLabel(selectedWeek)}</p>
                     </div>
                 </div>
                 <button
@@ -1151,7 +1184,7 @@ const ResponseViewer = () => {
                     <span className="text-sm text-slate-500">Group:</span>
                     <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded border border-blue-100 flex items-center gap-1">
                         <Folder size={12} />
-                        Week {selectedWeek}
+                        {getCourseWeekShortLabel(selectedWeek)}
                     </span>
                 </div>
                 <div className="relative w-full sm:w-auto">
@@ -1184,7 +1217,7 @@ const ResponseViewer = () => {
                                 <tr><td colSpan="5" className="p-12 text-center text-slate-400">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="p-3 bg-slate-50 rounded-full"><Search className="text-slate-300" size={24} /></div>
-                                        <p>No responses found for Week {selectedWeek}.</p>
+                                        <p>No responses found for {getCourseWeekLabel(selectedWeek)}.</p>
                                     </div>
                                 </td></tr>
                             ) : (
@@ -1246,7 +1279,9 @@ const ResponseViewer = () => {
                                 <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                                     {getCourseName(selectedResponse.courseId)}
                                     <span className="text-slate-300 mx-2">/</span>
-                                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold tracking-wide uppercase">Week {selectedResponse.week}</span>
+                                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold tracking-wide uppercase">
+                                        {getWeekLabel(getSelectedCourse(selectedResponse.courseId), selectedResponse.week)}
+                                    </span>
                                 </p>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors">
@@ -1305,6 +1340,38 @@ const ResponseViewer = () => {
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Admin Feedback */}
+                            <div className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                        <MessageSquare size={16} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800 text-sm">Admin Feedback</h3>
+                                        {selectedResponse.feedback?.updatedAt && (
+                                            <p className="text-xs text-slate-400">
+                                                Last updated by {selectedResponse.feedback.updatedByEmail || 'admin'}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                <textarea
+                                    className="w-full min-h-32 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-y"
+                                    placeholder="Write feedback for this trainee..."
+                                    value={feedbackDraft}
+                                    onChange={e => setFeedbackDraft(e.target.value)}
+                                />
+                                <div className="flex justify-end mt-3">
+                                    <button
+                                        onClick={handleSaveFeedback}
+                                        disabled={isSavingFeedback}
+                                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                    >
+                                        {isSavingFeedback ? 'Saving...' : 'Save Feedback'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Modal Footer */}

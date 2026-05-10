@@ -28,8 +28,7 @@ import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import clsx from 'clsx';
 import { useNavigate, useParams } from 'react-router-dom';
-
-const WEEKS = ['pre', 0, 2, 4, 6, 8];
+import { WEEKS, createDefaultWeekLabels, getWeekLabel, getWeekShortLabel } from '../../lib/assessmentWeeks';
 
 // Generate random 6-character alphanumeric key
 const generateRandomKey = () => {
@@ -71,6 +70,7 @@ const CourseManage = () => {
         date: '', // Course end date (Week 0 starts here)
         capacity: 30,
         registrationKey: '',
+        weekLabels: createDefaultWeekLabels(),
         weekForms: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' },
         weekDates: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' }
     });
@@ -198,7 +198,8 @@ const CourseManage = () => {
 
     // Send weekly notification
     const handleSendWeeklyNotification = async (course, weekNumber) => {
-        if (!confirm(`Send ${weekNumber === 'pre' ? 'Pre-training' : (weekNumber === 0 ? 'Week 0' : `Week ${weekNumber} Follow up`)} notification to all trainees in "${course.title}"?`)) {
+        const weekLabel = getWeekLabel(course, weekNumber);
+        if (!confirm(`Send ${weekLabel} notification to all trainees in "${course.title}"?`)) {
             return;
         }
 
@@ -218,7 +219,7 @@ const CourseManage = () => {
             const data = await response.json();
 
             if (response.ok) {
-                alert(`✅ ${weekNumber === 0 ? 'Action Commitment' : `Week ${weekNumber} Follow up`} notification sent to ${data.sentTo} trainees!`);
+                alert(`${weekLabel} notification sent to ${data.sentTo} trainees!`);
             } else {
                 throw new Error(data.error || 'Failed to send notification');
             }
@@ -236,6 +237,7 @@ const CourseManage = () => {
             date: course.date,
             capacity: course.capacity,
             registrationKey: course.registrationKey || '',
+            weekLabels: { ...createDefaultWeekLabels(), ...(course.weekLabels || {}) },
             weekForms: course.weekForms || { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' },
             weekDates: course.weekDates || { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' }
         });
@@ -250,6 +252,7 @@ const CourseManage = () => {
             date: '',
             capacity: 30,
             registrationKey: '',
+            weekLabels: createDefaultWeekLabels(),
             weekForms: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' },
             weekDates: { pre: '', 0: '', 2: '', 4: '', 6: '', 8: '' }
         });
@@ -308,6 +311,13 @@ const CourseManage = () => {
         setFormData({
             ...formData,
             weekDates: { ...formData.weekDates, [week]: dateValue }
+        });
+    };
+
+    const updateWeekLabel = (week, label) => {
+        setFormData({
+            ...formData,
+            weekLabels: { ...formData.weekLabels, [week]: label }
         });
     };
 
@@ -545,7 +555,7 @@ const CourseManage = () => {
                                                                 className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2 transition-colors"
                                                             >
                                                                 <Bell size={14} />
-                                                                Week {week} Follow up
+                                                                {getWeekLabel(course, week)}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -707,12 +717,21 @@ const CourseManage = () => {
                                 <div className="space-y-3">
                                     {WEEKS.map(week => (
                                         <div key={week} className="grid grid-cols-12 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                            <div className="col-span-2">
+                                            <div className="col-span-12 sm:col-span-3">
                                                 <span className="inline-flex items-center justify-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
-                                                    {week === 'pre' ? 'Pre' : week === 0 ? 'W0 AC' : `W${week} FU`}
+                                                    {getWeekShortLabel({ weekLabels: formData.weekLabels }, week)}
                                                 </span>
                                             </div>
-                                            <div className="col-span-4">
+                                            <div className="col-span-12 sm:col-span-9">
+                                                <input
+                                                    type="text"
+                                                    className="input-primary text-sm"
+                                                    placeholder="Assessment name"
+                                                    value={formData.weekLabels?.[week] || ''}
+                                                    onChange={e => updateWeekLabel(week, e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="col-span-12 sm:col-span-4">
                                                 <input
                                                     type="date"
                                                     className="input-primary text-sm"
@@ -721,7 +740,7 @@ const CourseManage = () => {
                                                     onChange={e => updateWeekDate(week, e.target.value)}
                                                 />
                                             </div>
-                                            <div className="col-span-6">
+                                            <div className="col-span-12 sm:col-span-8">
                                                 <select
                                                     className="input-primary text-sm"
                                                     value={formData.weekForms[week] || ''}
