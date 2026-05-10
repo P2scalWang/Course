@@ -522,11 +522,9 @@ const LiffAssessment = () => {
                                     <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
                                         {selectedFeedback.message}
                                     </p>
-                                    {selectedFeedback.updatedByEmail && (
-                                        <p className="text-xs text-slate-400 border-t border-slate-100 pt-3">
-                                            From {selectedFeedback.updatedByEmail}
-                                        </p>
-                                    )}
+                                    <p className="text-xs text-slate-400 border-t border-slate-100 pt-3">
+                                        From อาจารยวรพนธ มณวงศ
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="text-center py-10">

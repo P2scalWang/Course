@@ -28,7 +28,7 @@ import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Building2 from 'lucide-react/dist/esm/icons/building-2';
 import clsx from 'clsx';
 import { useNavigate, useParams } from 'react-router-dom';
-import { WEEKS, createDefaultWeekLabels, getWeekLabel, getWeekShortLabel } from '../../lib/assessmentWeeks';
+import { WEEKS, createDefaultWeekLabels, getWeekLabel } from '../../lib/assessmentWeeks';
 
 // Generate random 6-character alphanumeric key
 const generateRandomKey = () => {
@@ -149,16 +149,20 @@ const CourseManage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const dataToSave = {
+                ...formData,
+                weekLabels: { ...createDefaultWeekLabels(), ...(formData.weekLabels || {}) }
+            };
+
             if (currentCourse) {
-                await courseService.updateCourse(currentCourse.id, formData);
+                await courseService.updateCourse(currentCourse.id, dataToSave);
             } else {
                 // Generate key for new course if not set
-                const dataToSave = {
-                    ...formData,
+                await courseService.createCourse({
+                    ...dataToSave,
                     companyId: isUnassigned ? null : (companyId || null),
                     registrationKey: formData.registrationKey || generateRandomKey()
-                };
-                await courseService.createCourse(dataToSave);
+                });
             }
             setIsModalOpen(false);
             resetForm();
@@ -281,6 +285,11 @@ const CourseManage = () => {
         return Object.values(weekForms).filter(id => id && id !== '').length;
     };
 
+    const getWeekBadgeLabel = (week) => {
+        const label = formData.weekLabels?.[week] || getWeekLabel({ weekLabels: formData.weekLabels }, week);
+        return label.length > 18 ? `${label.slice(0, 18)}...` : label;
+    };
+
     // Filtered courses
     const filteredCourses = courses.filter(course => {
         // Search filter
@@ -300,25 +309,25 @@ const CourseManage = () => {
 
     // Update week form
     const updateWeekForm = (week, formId) => {
-        setFormData({
-            ...formData,
-            weekForms: { ...formData.weekForms, [week]: formId }
-        });
+        setFormData(prev => ({
+            ...prev,
+            weekForms: { ...prev.weekForms, [week]: formId }
+        }));
     };
 
     // Update week date
     const updateWeekDate = (week, dateValue) => {
-        setFormData({
-            ...formData,
-            weekDates: { ...formData.weekDates, [week]: dateValue }
-        });
+        setFormData(prev => ({
+            ...prev,
+            weekDates: { ...prev.weekDates, [week]: dateValue }
+        }));
     };
 
     const updateWeekLabel = (week, label) => {
-        setFormData({
-            ...formData,
-            weekLabels: { ...formData.weekLabels, [week]: label }
-        });
+        setFormData(prev => ({
+            ...prev,
+            weekLabels: { ...prev.weekLabels, [week]: label }
+        }));
     };
 
     // Auto-calculate week dates based on course end date
@@ -718,8 +727,11 @@ const CourseManage = () => {
                                     {WEEKS.map(week => (
                                         <div key={week} className="grid grid-cols-12 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
                                             <div className="col-span-12 sm:col-span-3">
-                                                <span className="inline-flex items-center justify-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
-                                                    {getWeekShortLabel({ weekLabels: formData.weekLabels }, week)}
+                                                <span
+                                                    className="inline-flex items-center justify-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold"
+                                                    title={formData.weekLabels?.[week] || getWeekLabel({ weekLabels: formData.weekLabels }, week)}
+                                                >
+                                                    {getWeekBadgeLabel(week)}
                                                 </span>
                                             </div>
                                             <div className="col-span-12 sm:col-span-9">
